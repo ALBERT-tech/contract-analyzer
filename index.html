@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Анализатор договоров · локально в браузере</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spectral:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<style>
+  :root{
+    --paper:#f3efe6; --paper-2:#ece6d8; --ink:#1f1b16; --ink-soft:#4a4338;
+    --line:#cbc1ac; --ox:#7a2722; --ox-soft:#a3463f; --gold:#9c7b3a; --ok:#3f6b3a;
+    --shadow:rgba(31,27,22,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(156,123,58,.06), transparent 40%),
+      radial-gradient(circle at 88% 8%, rgba(122,39,34,.05), transparent 35%);
+    color:var(--ink);font-family:'Spectral',Georgia,serif;font-size:17px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");}
+  .wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:48px 24px 96px}
+  header.top{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:30px}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--ox);margin:0 0 10px}
+  h1{font-family:'Fraunces',serif;font-weight:900;font-size:clamp(34px,6vw,56px);line-height:.98;margin:0;letter-spacing:-.01em}
+  h1 .em{font-style:italic;font-weight:400;color:var(--ox)}
+  .lede{margin:16px 0 0;max-width:62ch;color:var(--ink-soft);font-size:16px}
+  .privacy{display:inline-flex;align-items:center;gap:8px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ok);background:rgba(63,107,58,.08);border:1px solid rgba(63,107,58,.3);padding:6px 12px;border-radius:2px}
+  .privacy .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(63,107,58,.2)}
+
+  section{margin-top:34px;opacity:0;transform:translateY(8px);animation:rise .6s ease forwards}
+  section:nth-of-type(1){animation-delay:.05s}
+  section:nth-of-type(2){animation-delay:.12s}
+  section:nth-of-type(3){animation-delay:.19s}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  .step{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft);display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .step .num{display:inline-grid;place-items:center;width:24px;height:24px;border:1.5px solid var(--ink);border-radius:50%;font-size:12px;color:var(--ink)}
+
+  .panel{background:var(--paper-2);border:1px solid var(--line);border-radius:4px;padding:20px;box-shadow:0 1px 0 #fff inset, 0 8px 24px -18px var(--shadow)}
+  label.lbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
+  select,input[type=text],textarea,button{font-family:inherit;font-size:15px;color:var(--ink)}
+  select,input[type=text]{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:11px 12px;outline:none}
+  select:focus,input[type=text]:focus,textarea:focus{border-color:var(--ox);box-shadow:0 0 0 3px rgba(122,39,34,.12)}
+  textarea{width:100%;min-height:220px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:14px;resize:vertical;line-height:1.55;font-size:15px}
+  .model-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .model-row > div{flex:1;min-width:220px}
+
+  .btn{cursor:pointer;border:none;border-radius:3px;padding:12px 20px;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.05em;font-weight:500;transition:transform .12s ease, background .15s ease;white-space:nowrap}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--ink);color:var(--paper)}
+  .btn-primary:hover{background:var(--ox)}
+  .btn-primary:disabled{background:#9b9384;cursor:not-allowed}
+
+  .hint{font-size:13px;color:var(--ink-soft);margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.55}
+  .warn{color:var(--ox);font-weight:500}
+
+  .progress-wrap{margin-top:16px;display:none}
+  .progress-wrap.show{display:block}
+  .bar{height:8px;background:var(--paper);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ox),var(--gold));transition:width .25s ease}
+  .progress-text{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);margin-top:8px}
+
+  .status{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-top:14px}
+  .status .dot{width:8px;height:8px;border-radius:50%;background:#b9af9b}
+  .status.ready .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(63,107,58,.2)}
+  .status.loading .dot,.status.working .dot{background:var(--gold);animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+
+  .file-row{display:flex;align-items:center;gap:14px;margin:14px 0;flex-wrap:wrap}
+  .file-btn{cursor:pointer;border:1px dashed var(--ox-soft);color:var(--ox);background:rgba(122,39,34,.04);border-radius:3px;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;transition:background .15s}
+  .file-btn:hover{background:rgba(122,39,34,.09)}
+  .file-name{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft)}
+  .counter{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:6px;text-align:right}
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  .chip{cursor:pointer;background:var(--paper);border:1px solid var(--ink);border-radius:99px;padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);transition:all .14s ease}
+  .chip:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+  .chip:disabled{opacity:.4;cursor:not-allowed}
+  .ask-row{display:flex;gap:10px;margin-top:18px}
+  .ask-row input{flex:1}
+
+  .settings-row{display:flex;gap:18px;align-items:center;margin-top:16px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft)}
+  .settings-row input[type=number]{width:90px;padding:7px 9px}
+
+  .answer{margin-top:28px;display:none}
+  .answer.show{display:block;animation:rise .5s ease}
+  .answer-card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--ox);border-radius:4px;padding:24px 26px;box-shadow:0 12px 30px -22px var(--shadow)}
+  .answer-q{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ox);margin-bottom:14px}
+  .answer-body{white-space:pre-wrap;font-size:16.5px;line-height:1.7}
+  .answer-body .cite{display:block;margin-top:6px;padding:12px 16px;border-left:3px solid var(--gold);background:var(--paper-2);font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.65;color:var(--ink-soft);border-radius:0 3px 3px 0}
+  .cursor-blink{display:inline-block;width:8px;height:18px;background:var(--ox);margin-left:2px;vertical-align:text-bottom;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  details.ctx{margin-top:16px;border:1px solid var(--line);border-radius:4px;background:var(--paper);overflow:hidden}
+  details.ctx summary{cursor:pointer;list-style:none;padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.06em;color:var(--ink-soft);background:var(--paper-2);user-select:none}
+  details.ctx summary::-webkit-details-marker{display:none}
+  details.ctx summary::before{content:"▸ ";color:var(--ox)}
+  details.ctx[open] summary::before{content:"▾ "}
+  .ctx-body{padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.6;color:var(--ink-soft);white-space:pre-wrap;max-height:260px;overflow:auto}
+  .kw-tag{display:inline-block;background:rgba(156,123,58,.15);border:1px solid rgba(156,123,58,.4);color:var(--gold);border-radius:99px;padding:2px 9px;margin:2px;font-size:11px}
+
+  .nogpu{display:none;background:rgba(122,39,34,.07);border:1px solid var(--ox-soft);color:var(--ox);padding:16px 18px;border-radius:4px;font-size:15px;margin-top:20px}
+  .footer{margin-top:60px;border-top:1px solid var(--line);padding-top:18px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Локальный ИИ · WebLLM · WebGPU · RAG</p>
+    <h1>Разбор договора<br><span class="em">не выходя из браузера</span></h1>
+    <p class="lede">Документ режется на пункты, под каждый вопрос отбираются только релевантные пункты (≤ заданного объёма) — и уже они уходят в модель. Так обходим окно 4096 токенов. Договор никуда не отправляется.</p>
+    <div class="privacy"><span class="dot"></span> Всё считается на вашем устройстве — ничего не уходит в сеть</div>
+  </header>
+
+  <div id="nogpu" class="nogpu"></div>
+
+  <!-- ШАГ 1 — модель -->
+  <section>
+    <div class="step"><span class="num">1</span> Модель</div>
+    <div class="panel">
+      <div class="model-row">
+        <div>
+          <label class="lbl" for="model">Языковая модель (русский)</label>
+          <select id="model"></select>
+        </div>
+        <button id="loadBtn" class="btn btn-primary">Загрузить модель</button>
+      </div>
+      <div class="hint">Окно у всех браузерных моделей = 4096 токенов (потолок WebLLM). Поэтому в модель уходит не весь договор, а только отобранные пункты. Первая загрузка качает веса (≈2–6 ГБ), потом — из кэша браузера офлайн.</div>
+      <div id="progressWrap" class="progress-wrap">
+        <div class="bar"><i id="bar"></i></div>
+        <div id="progressText" class="progress-text"></div>
+      </div>
+      <div id="status" class="status"><span class="dot"></span><span id="statusText">Модель не загружена</span></div>
+    </div>
+  </section>
+
+  <!-- ШАГ 2 — текст -->
+  <section>
+    <div class="step"><span class="num">2</span> Текст договора</div>
+    <div class="panel">
+      <div class="file-row">
+        <label class="file-btn" for="file">⎙ Прикрепить .docx</label>
+        <input id="file" type="file" accept=".docx" style="display:none">
+        <span id="fileName" class="file-name">файл не выбран</span>
+      </div>
+      <textarea id="contract" placeholder="Вставьте сюда текст контракта / договора, либо прикрепите .docx файл выше…"></textarea>
+      <div id="counter" class="counter">0 знаков · 0 пунктов</div>
+    </div>
+  </section>
+
+  <!-- ШАГ 3 — вопросы -->
+  <section>
+    <div class="step"><span class="num">3</span> Вопрос к договору</div>
+    <div class="panel">
+      <div class="chips" id="chips">
+        <button class="chip" data-key="srok" disabled>Срок поставки</button>
+        <button class="chip" data-key="mesto" disabled>Место поставки</button>
+        <button class="chip" data-key="oik" disabled>Обеспечение исполнения контракта</button>
+        <button class="chip" data-key="ogo" disabled>Обеспечение гарантийных обязательств</button>
+        <button class="chip" data-key="summa" disabled>Сумма контракта</button>
+      </div>
+      <div class="ask-row">
+        <input id="customQ" type="text" placeholder="Свой вопрос к договору…">
+        <button id="askBtn" class="btn btn-primary" disabled>Спросить</button>
+      </div>
+      <div class="settings-row">
+        <label>Бюджет контекста: <input id="maxChars" type="number" value="3000" min="800" step="200"> знаков</label>
+        <label style="display:inline-flex;align-items:center;gap:6px"><input id="useModelKw" type="checkbox" checked> для своего вопроса модель сама подбирает ключевые слова</label>
+      </div>
+      <div class="hint">К каждому вопросу добавляется системная инструкция: отвечать <b>только по переданным пунктам</b>, ничего не выдумывать; формат — сначала ответ, потом «Цитата:» с дословным пунктом. Если в отобранном фрагменте ответа нет — модель напишет «В договоре не указано».</div>
+    </div>
+
+    <div id="answer" class="answer">
+      <div class="answer-card">
+        <div id="answerQ" class="answer-q"></div>
+        <div id="answerBody" class="answer-body"></div>
+      </div>
+      <details class="ctx" id="ctxBox">
+        <summary>Что было передано модели (отобранные пункты)</summary>
+        <div class="ctx-body" id="ctxBody"></div>
+      </details>
+    </div>
+  </section>
+
+  <div class="footer">
+    privacy-first · модель кэшируется в браузере · работает офлайн после первой загрузки<br>
+    секционный чанкинг + ретривал по ключевым словам · окно 4096 ток. обходится отбором пунктов<br>
+    нужен Chrome / Edge / Brave с WebGPU · открывать как обычную веб-страницу
+  </div>
+</div>
+
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+const $ = id => document.getElementById(id);
+const modelSel=$("model"), loadBtn=$("loadBtn"), bar=$("bar"), progressWrap=$("progressWrap"),
+      progressText=$("progressText"), statusEl=$("status"), statusText=$("statusText"),
+      contractEl=$("contract"), counter=$("counter"), askBtn=$("askBtn"), customQ=$("customQ"),
+      answerWrap=$("answer"), answerQ=$("answerQ"), answerBody=$("answerBody"),
+      ctxBody=$("ctxBody"), maxCharsEl=$("maxChars"), useModelKwEl=$("useModelKw");
+const chips=[...document.querySelectorAll(".chip")];
+
+let engine=null, modelId="", isQwen3=false, busy=false;
+
+/* ===== системный промпт ответа ===== */
+const SYSTEM_PROMPT =
+`Ты — ассистент по анализу договоров и госконтрактов. Правила НЕУКОСНИТЕЛЬНО:
+1. Отвечай ИСКЛЮЧИТЕЛЬНО по фрагментам договора, которые тебе передали. Внешние знания и догадки запрещены.
+2. Ничего не выдумывай. Если во фрагментах ответа нет — напиши ровно: «В договоре не указано».
+3. Формат ответа строго:
+   • Сначала краткий ответ по существу (1–3 предложения).
+   • Затем с новой строки строка «Цитата:» и далее дословная цитата нужного пункта (с его номером, если он есть). Если пунктов несколько — приведи все.
+4. Цитата копируется из переданного текста буквально.
+Отвечай на русском.`;
+
+/* ===== предустановленные вопросы и ключевые слова (стемы) ===== */
+const PRESET = {
+  srok:  { title:"Срок поставки",
+           q:"Какой срок поставки товара? Период, даты, графики, этапы, сроки исполнения обязательств по поставке.",
+           kw:["поставк","срок","период","график","дата","отгрузк","передач","дней","рабоч дн","календарн","этап","грузоотправ"] },
+  mesto: { title:"Место поставки",
+           q:"Каково место поставки товара? Адрес, грузополучатель, пункт назначения, условия и способ доставки.",
+           kw:["место поставк","место","адрес","грузополучател","доставк","пункт назнач","назначен","склад","объект","самовывоз","франко"] },
+  oik:   { title:"Обеспечение исполнения контракта",
+           q:"Каков размер, форма и условия обеспечения исполнения контракта? Сумма или процент, способ, сроки внесения и возврата.",
+           kw:["обеспечен исполнен","обеспечение исполнения","исполнения контракт","банковск гаранти","залог","денежн средств","размер обеспечен","возврат обеспечен"] },
+  ogo:   { title:"Обеспечение гарантийных обязательств",
+           q:"Каков размер, форма и условия обеспечения гарантийных обязательств? Сумма или процент, срок, способ предоставления, возврат.",
+           kw:["гарантийн обязательств","обеспечен гарантийн","гарантийн","гаранти качеств","срок гаранти","размер обеспечен","возврат обеспечен"] },
+  summa: { title:"Сумма контракта",
+           q:"Какова цена (сумма) контракта? Итоговая сумма, наличие и размер НДС, порядок формирования цены.",
+           kw:["цена контракт","цена","сумма","стоимость","ндс","руб","итого","тариф","порядок расчет","цена включ"] }
+};
+
+/* ===== WebGPU ===== */
+if(!navigator.gpu){
+  const n=$("nogpu"); n.style.display="block";
+  n.innerHTML="⚠ Браузер не поддерживает <b>WebGPU</b>. Откройте в свежем Chrome / Edge / Brave (desktop).";
+  loadBtn.disabled=true;
+}
+
+/* ===== список моделей из реестра WebLLM (Qwen2.5 + Qwen3 instruct) ===== */
+(function fillModels(){
+  const all = webllm.prebuiltAppConfig.model_list;
+  const pick = all.filter(m =>
+    (/Qwen2\.5-(0\.5B|1\.5B|3B|7B)-Instruct/.test(m.model_id) ||
+     /Qwen3-(0\.6B|1\.7B|4B|8B)/.test(m.model_id)) &&
+    !/Coder|Math|Thinking|Embedding/.test(m.model_id)
+  ).sort((a,b)=>(a.vram_required_MB||0)-(b.vram_required_MB||0));
+  const list = pick.length ? pick : [{model_id:"Qwen2.5-3B-Instruct-q4f16_1-MLC"},{model_id:"Qwen2.5-7B-Instruct-q4f16_1-MLC"}];
+  for(const m of list){
+    const id=m.model_id;
+    const gb=m.vram_required_MB?(m.vram_required_MB/1024).toFixed(1)+" ГБ":"";
+    const sz=id.match(/(0\.5B|0\.6B|1\.5B|1\.7B|3B|4B|7B|8B)/)?.[0]||"";
+    let note=""; const n=parseFloat(sz);
+    if(n<=1.7) note=" · для слабых ПК";
+    else if(n<=4) note=" · оптимально";
+    else note=" · точнее, нужна мощная видеокарта";
+    const o=document.createElement("option");
+    o.value=id; o.textContent=`${id} · ${gb}${note}`;
+    modelSel.appendChild(o);
+  }
+  const ids=list.map(m=>m.model_id);
+  modelSel.value = ids.find(id=>/Qwen2\.5-3B-Instruct-q4f16/.test(id)) || ids.find(id=>/3B|4B/.test(id)) || ids[0];
+})();
+
+/* ===== нормализация / стемминг по подстроке ===== */
+const norm = s => s.toLowerCase().replace(/ё/g,"е");
+
+/* ===== разбивка договора на пункты ===== */
+function splitClauses(text){
+  const paras = text.replace(/\r/g,"").split(/\n{1,}/).map(s=>s.trim()).filter(Boolean);
+  // объединяем «висячие» короткие заголовки со следующим абзацем не будем — храним как есть,
+  // но при отборе подтягиваем соседей. Возвращаем массив {i, text}.
+  return paras.map((t,i)=>({i, text:t}));
+}
+const isHeading = t =>
+  /^\s*([IVXLCDM]+\.\s|РАЗДЕЛ|Раздел|СТАТЬЯ|Статья|ПРИЛОЖЕНИЕ|Приложение)/.test(t) ||
+  (t.length<70 && /[А-ЯЁ]/.test(t) && t===t.toUpperCase());
+const clauseNo = t => (t.match(/^\s*(\d+(?:\.\d+)*\.?|[IVXLCDM]+\.)/)||[])[1]||"";
+
+/* ===== скоринг пункта по ключам ===== */
+function scoreClause(text, keys){
+  const t = norm(text); let score=0;
+  for(const raw of keys){
+    const k = norm(raw);
+    const words = k.split(/\s+/).filter(Boolean);
+    // фраза целиком — большой вес; отдельные слова — по 1
+    if(words.length>1 && t.includes(k)) score += 4;
+    for(const w of words){ if(w.length>=3 && t.includes(w)) score += 1; }
+  }
+  return score;
+}
+
+/* ===== отбор пунктов под бюджет ===== */
+function retrieve(clauses, keys, budget){
+  const scored = clauses.map(c=>({...c, s:scoreClause(c.text, keys)})).filter(c=>c.s>0);
+  scored.sort((a,b)=> b.s-a.s || a.i-b.i);
+  const chosen = new Set(); let total=0;
+  for(const c of scored){
+    if(total >= budget) break;
+    const add=[c.i];
+    // если это заголовок — подтянуть следующий абзац (тело раздела)
+    if(isHeading(c.text) && clauses[c.i+1]) add.push(c.i+1);
+    // подтянуть предыдущий заголовок (для номера/контекста пункта)
+    if(c.i>0 && isHeading(clauses[c.i-1].text)) add.push(c.i-1);
+    for(const idx of add){
+      if(chosen.has(idx)) continue;
+      const len=clauses[idx].text.length;
+      if(total+len > budget && chosen.size>0) continue;
+      chosen.add(idx); total+=len;
+    }
+  }
+  const idxs=[...chosen].sort((a,b)=>a-b);
+  const context = idxs.map(i=>clauses[i].text).join("\n\n");
+  return {context, count:idxs.length, total};
+}
+
+/* ===== счётчик ===== */
+function updateCounter(){
+  const v=contractEl.value;
+  const n = v.trim()? splitClauses(v).length : 0;
+  counter.textContent = `${v.length.toLocaleString("ru")} знаков · ${n} пунктов`;
+}
+contractEl.addEventListener("input", updateCounter);
+
+/* ===== docx через mammoth ===== */
+$("file").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  $("fileName").textContent=f.name+" — читаю…";
+  try{
+    const buf=await f.arrayBuffer();
+    const res=await window.mammoth.extractRawText({arrayBuffer:buf});
+    contractEl.value=res.value.trim(); $("fileName").textContent=f.name; updateCounter();
+  }catch(err){ $("fileName").textContent="ошибка чтения файла"; console.error(err); }
+});
+
+/* ===== загрузка модели ===== */
+loadBtn.addEventListener("click", async ()=>{
+  if(engine||busy) return; busy=true;
+  modelId=modelSel.value; isQwen3=/Qwen3/.test(modelId);
+  loadBtn.disabled=true; modelSel.disabled=true;
+  progressWrap.classList.add("show"); statusEl.className="status loading"; statusText.textContent="Загрузка модели…";
+  try{
+    engine=await webllm.CreateMLCEngine(modelId,{ initProgressCallback:p=>{
+      const pct=Math.round((p.progress||0)*100); bar.style.width=pct+"%";
+      progressText.textContent=p.text||`${pct}%`;
+    }});
+    bar.style.width="100%"; progressText.textContent="Готово — модель в кэше браузера.";
+    statusEl.className="status ready"; statusText.textContent="Загружена: "+modelId;
+    chips.forEach(c=>c.disabled=false); askBtn.disabled=false; loadBtn.textContent="Модель загружена ✓";
+  }catch(err){
+    statusEl.className="status"; statusText.textContent="Ошибка: "+(err.message||err);
+    loadBtn.disabled=false; modelSel.disabled=false; console.error(err);
+  }
+  busy=false;
+});
+
+/* ===== очистка <think> у Qwen3 ===== */
+const stripThink = s => s.replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/<\/?think>/gi,"").trim();
+
+/* ===== Q0: модель подбирает ключевые слова для своего вопроса ===== */
+async function extractKeywords(question){
+  const sys = "Ты помогаешь искать пункты в договоре. По вопросу пользователя верни 6–12 ключевых слов и коротких фраз (леммы/корни), по которым нужно искать релевантные пункты договора. Включай юридические синонимы. Ответь СТРОГО в формате JSON-массива строк и ничего больше, без пояснений." + (isQwen3?" /no_think":"");
+  const usr = "Вопрос: "+question + (isQwen3?" /no_think":"");
+  try{
+    const r=await engine.chat.completions.create({
+      messages:[{role:"system",content:sys},{role:"user",content:usr}],
+      temperature:0.1, max_tokens:200
+    });
+    let out=stripThink(r.choices[0].message.content||"");
+    const m=out.match(/\[[\s\S]*\]/);
+    if(m){ const arr=JSON.parse(m[0]); if(Array.isArray(arr)&&arr.length) return arr.map(String); }
+  }catch(e){ console.warn("keyword extraction failed, fallback to question words", e); }
+  // фолбэк — слова из вопроса длиннее 3 букв
+  return question.split(/[^А-Яа-яЁёA-Za-z0-9]+/).filter(w=>w.length>3);
+}
+
+/* ===== рендер ответа с выделением цитаты ===== */
+function renderAnswer(text){
+  const idx=text.search(/Цитата\s*:/i);
+  if(idx===-1){ answerBody.textContent=text; return; }
+  const head=text.slice(0,idx).trim();
+  const cite=text.slice(idx).replace(/^Цитата\s*:/i,"").trim();
+  answerBody.textContent="";
+  if(head) answerBody.appendChild(document.createTextNode(head));
+  const c=document.createElement("span"); c.className="cite"; c.textContent="Цитата: "+cite;
+  answerBody.appendChild(c);
+}
+
+/* ===== основной поток: вопрос -> ключи -> ретривал -> ответ ===== */
+async function ask(question, title, presetKeys){
+  if(!engine||busy) return;
+  const raw=contractEl.value.trim();
+  if(!raw){ answerWrap.classList.add("show"); answerQ.textContent="Нет текста";
+            answerBody.textContent="Сначала вставьте текст договора или прикрепите .docx."; return; }
+  busy=true; chips.forEach(c=>c.disabled=true); askBtn.disabled=true;
+  statusEl.className="status working"; 
+  answerWrap.classList.add("show"); answerQ.textContent=title;
+  answerBody.innerHTML='<span class="cursor-blink"></span>';
+  answerWrap.scrollIntoView({behavior:"smooth",block:"center"});
+
+  // 1. ключевые слова
+  let keys = presetKeys ? [...presetKeys] : [];
+  if(!presetKeys && useModelKwEl.checked){
+    statusText.textContent="Подбираю ключевые слова…";
+    const mk=await extractKeywords(question);
+    keys = keys.concat(mk);
+  }
+  if(keys.length===0) keys = question.split(/[^А-Яа-яЁёA-Za-z0-9]+/).filter(w=>w.length>3);
+
+  // 2. ретривал
+  const clauses=splitClauses(raw);
+  const budget=Math.max(800, parseInt(maxCharsEl.value)||3000);
+  const {context, count, total}=retrieve(clauses, keys, budget);
+
+  // показать что отобрали
+  ctxBody.innerHTML="";
+  const kwLine=document.createElement("div");
+  kwLine.innerHTML = "Ключи: " + keys.map(k=>`<span class="kw-tag">${k}</span>`).join("");
+  ctxBody.appendChild(kwLine);
+  const meta=document.createElement("div");
+  meta.style.margin="10px 0"; meta.textContent=`Отобрано пунктов: ${count} · ${total} знаков из ${raw.length}`;
+  ctxBody.appendChild(meta);
+  const pre=document.createElement("div"); pre.textContent = context || "(подходящих пунктов не найдено)";
+  ctxBody.appendChild(pre);
+
+  if(!context){
+    answerBody.textContent="По этому вопросу подходящих пунктов в договоре не найдено. Попробуйте переформулировать вопрос или увеличить бюджет контекста.";
+    busy=false; chips.forEach(c=>c.disabled=false); askBtn.disabled=false; statusEl.className="status ready"; return;
+  }
+
+  // 3. ответ
+  statusText.textContent="Отвечаю…";
+  const userMsg = `ФРАГМЕНТЫ ДОГОВОРА (только они доступны для ответа):\n"""\n${context}\n"""\n\nВОПРОС: ${question}` + (isQwen3?" /no_think":"");
+  const sys = SYSTEM_PROMPT + (isQwen3?" /no_think":"");
+  let acc="";
+  try{
+    const stream=await engine.chat.completions.create({
+      messages:[{role:"system",content:sys},{role:"user",content:userMsg}],
+      temperature:0.1, max_tokens:800, stream:true
+    });
+    for await (const ch of stream){
+      acc += ch.choices[0]?.delta?.content || "";
+      answerBody.textContent = stripThink(acc) || "…";
+    }
+    renderAnswer(stripThink(acc));
+  }catch(err){ answerBody.textContent="Ошибка: "+(err.message||err); console.error(err); }
+
+  busy=false; chips.forEach(c=>c.disabled=false); askBtn.disabled=false;
+  statusEl.className="status ready"; statusText.textContent="Загружена: "+modelId;
+}
+
+chips.forEach(c=>c.addEventListener("click",()=>{
+  const p=PRESET[c.dataset.key]; ask(p.q, p.title, p.kw);
+}));
+askBtn.addEventListener("click",()=>{
+  const q=customQ.value.trim(); if(!q) return; ask(q, "Свой вопрос: "+q, null);
+});
+customQ.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!askBtn.disabled) askBtn.click(); });
+
+updateCounter();
+</script>
+</body>
+</html>
