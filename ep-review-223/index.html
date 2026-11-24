@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Проверка прямой закупки · 223-ФЗ</title>
+<style>
+:root{--ink:#193930;--muted:#52685e;--line:#d4ded5;--green:#135c43;--pale:#e9f2ea;--sand:#fff3d8;--red:#842f23;--pink:#ffede5}
+*{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:var(--ink);font:15px/1.48 Inter,"Segoe UI",sans-serif}header{background:#193a30;color:white;padding:12px max(3vw,calc((100vw - 1420px)/2));font-weight:650}header span{font-weight:400;margin-left:12px;color:#c6dbcd}main{max-width:1500px;margin:auto;padding:24px clamp(14px,3vw,44px) 60px}h1,h2,h3,h4,p{margin:0}h1{font-size:clamp(28px,3.4vw,44px);line-height:1.12;letter-spacing:-.045em}h2{font-size:23px;letter-spacing:-.025em}h3{font-size:18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;margin:5px 0 20px}.workspace{display:grid;grid-template-columns:minmax(330px,.88fr) minmax(420px,1.2fr);gap:18px;align-items:start}.panel{background:white;border:1px solid var(--line);border-radius:12px;overflow:hidden}.head,.pad{padding:16px 20px}.head{border-bottom:1px solid var(--line)}input,select,button{font:inherit;color:inherit}input:not([type=file]),select{max-width:100%;border:1px solid #abbeb1;background:white;border-radius:5px;padding:7px 9px}input[type=file]{max-width:100%;font-size:13px}input::file-selector-button,button{border:1px solid #9bb4a5;background:#f9fbf8;color:var(--green);padding:6px 9px;border-radius:6px;margin-right:6px;cursor:pointer}button:hover,input::file-selector-button:hover{background:var(--pale)}:focus-visible{outline:3px solid #538c73;outline-offset:2px}.field{display:grid;gap:4px;margin-top:8px}.fields,.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(144px,1fr));gap:8px}.field span,small,.meta,.sub{font-size:13px;color:var(--muted)}.meta,.sub{margin-top:6px}.err{color:var(--red)}details>summary{cursor:pointer;color:var(--green);padding:5px 0}details>summary:hover,a:hover{text-decoration:underline}a{color:var(--green)}.callout,.spot{padding:10px 12px;background:var(--pale);margin-bottom:10px;border-left:3px solid #71937c}.spot{margin:10px 0}.spot strong,.rule summary small,.fact strong{display:block}.rule summary small{margin-left:17px}.rule{padding:4px;border-bottom:1px solid var(--line)}#catalogueRows{max-height:62vh;min-height:100px;overflow:auto;border-top:1px solid var(--line);margin-top:10px}blockquote{margin:4px 0 8px;padding:4px 9px;background:#f5f7f4;border-left:3px solid #c1d2c3;white-space:pre-line;overflow-wrap:anywhere}.evidence{font-size:14px}.evidence small{display:block;margin-top:5px}.facts{grid-template-columns:2fr 1fr;margin:12px 0}.fact{background:#f2f5ef;padding:9px 11px;border-radius:6px;min-width:0;overflow-wrap:anywhere}.fact:last-child{grid-column:1/-1}.verdict{padding:13px 15px;border-radius:7px;margin:14px 0;background:var(--pale)}.verdict h3{font-size:21px}.unknown,.partial,.suggest{background:var(--sand);color:#654218}.risk,.excluded,.blocked{background:var(--pink);color:var(--red)}.fit,.ok{background:var(--pale);color:var(--green)}.badge{display:inline-block;padding:2px 6px;margin-right:7px;font-size:12px;font-weight:650;border-radius:4px}.route{border-top:1px solid var(--line);padding:8px 0}.check{border-left:2px solid var(--line);padding:4px 9px;margin:6px 0}.rule p,.route p{margin-top:4px}.source{display:inline-block;margin:4px 12px 2px 0}.quiet{margin-top:8px}[hidden]{display:none!important}@media(max-width:840px){.workspace{grid-template-columns:1fr}#catalogueRows{max-height:300px}.head,.pad{padding:14px}}@media(max-width:450px){.facts{grid-template-columns:1fr}}
+</style></head><body><header>Проверка закупок <span>223-ФЗ</span></header><main>
+
+<div class="top"><h1>Проверка прямой закупки</h1><label><small>Учебный договор</small><br><select id="scenario">
+<option value="0">Основание не указано</option><option value="1">Указан ошибочный пункт</option><option value="2">Пункт подтверждён</option><option value="3">Требуется конкурс</option></select></label></div>
+<p class="callout" id="notice"></p><div class="workspace">
+<section class="panel"><div class="head"><h2>Положение о закупке</h2><label class="field" id="policyField"><span>Основной текст и поправки по порядку</span><input id="regFiles" type="file" multiple accept=".pdf,.docx,.txt"></label><p id="pstatus" class="sub" role="status"></p></div>
+<div class="pad"><h3 id="edition"></h3><div id="highlights"></div><div class="fields"><label class="field"><span>Поиск по основаниям</span><input id="groundSearch" type="search" placeholder="Например, связь"></label><label class="field"><span>Категория</span><select id="groundType"></select></label></div><div id="count" class="sub"></div><div id="catalogueRows" tabindex="0"></div></div></section>
+<section class="panel"><div class="head"><h2>Договор и спецификация</h2><label class="field" id="contractField"><span>Договор с приложениями</span><input id="contractFile" type="file" accept=".pdf,.docx,.txt"></label><p class="sub" id="rstatus" role="status"></p></div><div id="report" class="pad" aria-live="polite"></div></section></div>
+</main><script>
+const token="__TOKEN__";
+const local=token!=="__"+"TOKEN__";
+const $=id=>document.getElementById(id);
+const labels={ok:'Подтверждено',risk:'Противоречие',unknown:'Недостаточно данных',na:'Неприменимо',partial:'Подходит при условиях',fit:'Подтверждено',excluded:'Не подходит'};
+function el(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n}
+function option(host,key,label){const o=el('option',label);o.value=key;host.append(o)}
+function fold(title){const d=el('details');d.append(el('summary',title));return d}
+function link(title,href){const a=el('a',title,'source');a.href=href;a.rel='noopener';a.target='_blank';return a}
+function refs(host,policy=[],contract=[]){
+  if(!policy.length&&!contract.length)return;
+  const d=fold('Цитаты и место в документе');d.className='evidence';
+  for(const [label,items] of [['Положение',policy],['Договор',contract]])for(const r of items)d.append(el('small',label+' · '+r.file+' · '+r.place),el('blockquote',r.quote));
+  host.append(d);
+}
+function message(id,text,retry){const n=$(id);n.replaceChildren(el('span',text));n.className=retry?'meta err':'meta';if(retry){const b=el('button','Повторить');b.onclick=retry;n.append(' ',b)}}
+function checkNode(c){const n=el('div',null,'check');n.append(el('span',labels[c.state]||c.state,'badge '+c.state),el('strong',c.label),el('p',c.detail));refs(n,c.policy,c.contract);return n}
+let currentCatalogue=null;
+function allRules(){return [...currentCatalogue.entries,...currentCatalogue.controls]}
+function ruleElement(r){const box=fold(r.title);box.className='rule';box.dataset.clause=r.clause;box.firstChild.append(el('small',r.clause+' · '+(r.limit||'Лимит в извлечённом фрагменте не установлен')));box.append(el('p',r.rule));if(r.check)box.append(el('p',r.check,'sub'));refs(box,r.refs);return box}
+function drawCatalogue(){
+  const host=$('catalogueRows');host.replaceChildren();if(!currentCatalogue)return;
+  const norm=t=>String(t||'').toLowerCase().replaceAll('ё','е');
+  const terms=norm($('groundSearch').value).trim().split(/\s+/).filter(Boolean),group=$('groundType').value;
+  const matched=allRules().filter(r=>(!group||r.category===group)&&terms.every(t=>norm([r.title,r.clause,r.rule,r.check,r.limit,r.category].join(' ')).includes(t)));
+  $('count').textContent='Показано '+matched.length+' из '+allRules().length+' записей';for(const r of matched)host.append(ruleElement(r));
+}
+function jumpToRule(clause){if(!currentCatalogue)return;$('groundSearch').value=clause;$('groundType').value='';drawCatalogue();const node=Array.from($('catalogueRows').children).find(row=>row.dataset.clause===clause);if(node){node.open=true;node.scrollIntoView({block:'nearest'});node.firstChild.focus({preventScroll:true})}}
+function routeNode(r){const box=el('div',null,'route'),b=el('button',r.clause);b.onclick=()=>jumpToRule(r.clause);box.append(b,el('strong',r.title),el('span',labels[r.state],'badge '+r.state),el('p',r.detail));for(const c of r.checks)box.append(checkNode(c));if(!r.checks.length)refs(box,r.policy);return box}
+function showReport(data){
+  const host=$('report'),d=data.decision;host.replaceChildren(el('h3',data.title),el('p',data.meta+' · '+data.mode,'sub'));
+  const facts=el('div',null,'facts');
+  for(const [key,label,empty] of [['subject','Предмет договора','Не установлен'],['price','Цена договора','Не установлена'],['declared','Основание заказчика','Конкретный пункт не найден']]){
+    const f=d.facts[key],box=el('div',null,'fact');box.append(el('small',label),el('strong',f.value||empty));if(key==='declared'&&f.note)box.append(el('div',f.note,'sub'));refs(box,[],f.refs);facts.append(box);
+  }
+  host.append(facts);
+  const verdict=el('div',null,'verdict '+d.state);verdict.append(el('h3',d.title),el('p',d.detail));host.append(verdict);
+  if(d.blocker)host.append(checkNode(d.blocker));
+  if(d.selected){host.append(el('h4','Проверка пункта заказчика'),routeNode(d.selected))}
+  if(d.alternatives.length){host.append(el('h4',d.selected||d.facts.declared.value?'Какой пункт можно предложить':'Какой пункт подходит по документам'));for(const r of d.alternatives)host.append(routeNode(r))}
+  else if(['excluded','unknown','partial'].includes(d.state)){host.append(el('p','Другого обоснованного варианта по представленным документам не найдено.','spot'))}
+  const other=d.routes.filter(r=>r.clause!==d.selected?.clause&&!d.alternatives.some(a=>a.clause===r.clause));
+  if(other.length&&!d.blocker){const box=fold('Результаты по остальным проверенным основаниям · '+other.length);for(const r of other){const row=fold(r.clause+' · '+(labels[r.state]||r.state));row.append(routeNode(r));box.append(row)}host.append(box)}
+  if(data.items.length){const box=fold('Дополнительные проверки договора · '+data.items.length);for(const it of data.items){const n=checkNode({label:it.title+' · '+it.clause,state:it.status,detail:it.detail,policy:it.policy,contract:it.contract});if(it.action)n.append(el('p',it.action,'sub'));box.append(n)}host.append(box)}
+  if(data.document){const box=fold('Текст учебного договора');box.append(el('blockquote',data.document));host.append(box)}
+}
+async function api(url,body){const response=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json','X-Review-Token':token},body:JSON.stringify(body)}:{});const data=await response.json();if(!response.ok)throw Error(data.error||'Не удалось получить результат.');return data}
+async function upload(f){if(!f||!f.size||f.size>14*1024*1024)throw Error('Нужен непустой файл до 14 МБ.');return new Promise((ok,fail)=>{const r=new FileReader();r.onerror=()=>fail(Error('Не удалось прочитать '+f.name));r.onload=()=>ok({name:f.name,data:String(r.result).split(',')[1]});r.readAsDataURL(f)})}
+const rules=[
+  ['Цена','Любые товары, работы или услуги','П. 2.1','До 250 000 ₽ включительно','Заказчик вправе заключить прямой договор с любым предметом при цене одной закупки не выше 250 000 рублей.'],
+  ['Предмет','Услуги телефонной связи','П. 2.2','Собственный порог не указан','Услуги телефонной связи допускается приобретать у единственного поставщика. Покупка оборудования по данному пункту не допускается.'],
+  ['Поставщик','Услуга естественной монополии','П. 2.3','Собственный порог не указан','Прямой договор допускается на услугу естественной монополии при документальном подтверждении статуса исполнителя и отнесения услуги к сфере такой монополии.'],
+  ['Финансирование','Целевой грант','П. 3.1','Свыше 400 000 ₽','При оплате из целевого гранта заказчик проводит конкурс, если сумма договора превышает 400 000 рублей. Требование действует для всех оснований раздела 2.']
+];
+const evidence=(file,place,quote)=>({file,place,quote});
+const synthetic=rules.map(([category,title,clause,limit,rule])=>({category,title,clause,limit,rule,refs:[evidence('Учебное положение',clause,rule)]}));
+const sampleCatalogue={name:'Учебное положение · вымышленный заказчик',entries:synthetic.slice(0,3),controls:synthetic.slice(3)};
+const cases=[
+  {subject:'Поставка цветной бумаги',sum:76000,declared:null,phone:false,grant:false},
+  {subject:'Поставка конвертов',sum:91000,declared:1,phone:false,grant:false},
+  {subject:'Услуги местной телефонной связи',sum:280000,declared:1,phone:true,grant:false},
+  {subject:'Поставка принтеров',sum:480000,declared:0,phone:false,grant:true}
+];
+function makeDemo(i){
+  const c=cases[i], money=c.sum.toLocaleString('ru-RU')+' ₽', clause=c.declared===null?'':synthetic[c.declared].clause;
+  const source=(where,text)=>evidence('Учебный договор '+(i+1),where,text);
+  const preamble=source('Преамбула',clause?'Стороны заключили договор на основании '+clause+' Учебного положения.':'Стороны заключили договор поставки для нужд учебного учреждения.');
+  const sub=source('Спецификация, строка 1',c.subject+'.'),price=source('Раздел о цене','Цена договора составляет '+c.sum+' рублей.'),fund=source('Финансирование',c.grant?'Оплата производится из целевого гранта.':'Оплата производится из собственных средств.');
+  const mk=(idx,label,state,detail,contract)=>({label,state,detail,contract,policy:synthetic[idx].refs});
+  const card=(idx,state,detail,checks)=>({clause:synthetic[idx].clause,title:synthetic[idx].title,state,detail,checks,policy:synthetic[idx].refs});
+  const under=c.sum<=250000;
+  const general=card(0,under?'fit':'excluded',under?'Предмет разрешён, цена укладывается в лимит.':'Цена превышает предел одной закупки.',[
+    mk(0,'Предмет','ok','Пункт допускает закупку с любым предметом.',[sub]),mk(0,'Цена',under?'ok':'risk',money+' при лимите 250 000 ₽.',[price])]);
+  const telecom=card(1,c.phone?'fit':'excluded',c.phone?'В спецификации указана услуга телефонной связи.':'Спецификация предусматривает поставку товара. Пункт охватывает услуги связи.',[
+    mk(1,'Предмет спецификации',c.phone?'ok':'risk',c.subject+'.',[sub])]);
+  const monopoly=card(2,c.phone?'unknown':'excluded',c.phone?'Нужны документы о статусе исполнителя и виде услуги.':'Спецификация предусматривает товар, а пункт охватывает услуги.',[
+    mk(2,'Предмет и статус',c.phone?'unknown':'risk',c.phone?'Статус исполнителя по учебному договору не установлен.':c.subject+'.',[sub])]);
+  const blocker=c.grant&&c.sum>400000?mk(3,'Обязательный способ','risk','Цена '+money+' превышает 400 000 ₽, а источник оплаты — целевой грант. Пункт 3.1 требует конкурса.',[fund,price]):null;
+  const routes=[general,telecom,monopoly],selected=c.declared===null?null:routes[c.declared];
+  const state=blocker?'blocked':selected?selected.state:'suggest';
+  const alternatives=blocker||state==='fit'?[]:routes.filter(r=>r!==selected&&r.state==='fit');
+  return {title:'Учебный договор '+(i+1),meta:'Вымышленный пример',mode:'Сверка с учебным положением',items:[],
+    document:[preamble,sub,price,fund].map(r=>r.quote).join('\n'),
+    decision:{facts:{subject:{value:c.subject,refs:[sub]},price:{value:money,refs:[price]},declared:{value:clause,refs:[preamble],note:clause?'Основание указано в преамбуле.':'Конкретный пункт в учебном договоре отсутствует.'}},
+      title:{suggest:'Есть возможное основание',excluded:'Не соответствует указанному основанию',fit:'Соответствует указанному основанию',blocked:'Прямая закупка невозможна по учебному положению'}[state],
+      detail:blocker?blocker.detail:selected?selected.detail:'Пункт 2.1 подходит по предмету и цене. В договоре выбор этого пункта заказчиком не зафиксирован.',routes,selected,alternatives,blocker,state}};
+}
+function displayCatalogue(d){
+  currentCatalogue=d;$('edition').textContent=d.name;$('groundSearch').value='';
+  const types=$('groundType');types.replaceChildren();option(types,'','Все категории');for(const name of new Set(allRules().map(r=>r.category)))option(types,name,name);
+  const h=$('highlights');h.replaceChildren();for(const r of d.entries.filter(r=>r.category==='Цена')){const card=el('div',null,'spot');card.append(el('strong',r.title),el('p',r.limit||r.rule),el('small',r.clause));refs(card,r.refs);h.append(card)}
+  drawCatalogue();
+}
+let version=0,reviewNo=0,policyId='';
+function displaySample(){
+  ++version;++reviewNo;policyId='';$('regFiles').value='';$('contractFile').value='';
+  displayCatalogue(sampleCatalogue);showReport(makeDemo(Number($('scenario').value)));
+  $('pstatus').textContent='Учебные правила и суммы придуманы для демонстрации.';
+  $('rstatus').textContent='Цитаты можно раскрыть под каждым выводом.';
+}
+async function loadPolicy(){
+  if(!local)return;
+  const seq=++version;++reviewNo;policyId='';currentCatalogue=null;$('catalogueRows').replaceChildren();$('count').textContent='';$('edition').textContent='';$('groundType').replaceChildren();$('highlights').replaceChildren();$('report').replaceChildren();$('scenario').selectedIndex=-1;
+  const chosen=Array.from($('regFiles').files);if(!chosen.length)return;
+  if(chosen.length>8){$('pstatus').textContent='Можно загрузить до восьми файлов одним комплектом.';return}
+  $('pstatus').textContent='Извлекаем правила, проверяем цитаты…';
+  $('rstatus').textContent=$('contractFile').files.length?'Договор ожидает Положение.':'Выберите договор с приложениями.';
+  try{
+    const data=await api('/api/policies',{files:await Promise.all(chosen.map(upload))});if(seq!==version)return;
+    policyId=data.id;displayCatalogue(data.catalogue);$('pstatus').textContent='Правила извлечены из загруженной редакции.';if($('contractFile').files.length)await reviewFile();
+  }catch(e){if(seq===version)message('pstatus',e.message,loadPolicy)}
+}
+async function reviewFile(){
+  if(!local)return;
+  const sv=version,seq=++reviewNo,f=$('contractFile').files[0];$('report').replaceChildren();
+  if(!f||!policyId){$('rstatus').textContent='Выберите Положение и договор с приложениями.';return}
+  $('rstatus').textContent='Проверяем основания по загруженной редакции…';
+  try{const result=await api('/api/review',{policy_id:policyId,contract:await upload(f)});if(seq!==reviewNo||sv!==version)return;showReport(result);$('rstatus').textContent='Проверка завершена.'}
+  catch(e){if(seq===reviewNo&&sv===version)message('rstatus',e.message,reviewFile)}
+}
+$('groundSearch').oninput=drawCatalogue;$('groundType').onchange=drawCatalogue;$('scenario').onchange=displaySample;
+$('regFiles').onchange=loadPolicy;$('contractFile').onchange=reviewFile;
+$('policyField').hidden=$('contractField').hidden=!local;
+if(local){$('notice').textContent='Для работы со своими документами загрузите Положение и договор. Файлы обработает настроенная вами модель.'}
+else{const a=el('a','Скачать приложение для своих документов (ZIP)');a.href='./ep-review-223.zip';a.download='ep-review-223.zip';if(location.protocol==='file:')$('notice').textContent='Для проверки своих документов запустите start.cmd из распакованного архива.';else $('notice').append('Публичное демо на вымышленных документах. ',a)}
+displaySample();
+
+</script></body></html>
