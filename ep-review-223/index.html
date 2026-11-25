@@ -6,12 +6,15 @@
 *{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:var(--ink);font:15px/1.48 Inter,"Segoe UI",sans-serif}header{background:#193a30;color:white;padding:12px max(3vw,calc((100vw - 1420px)/2));font-weight:650}header span{font-weight:400;margin-left:12px;color:#c6dbcd}main{max-width:1500px;margin:auto;padding:24px clamp(14px,3vw,44px) 60px}h1,h2,h3,h4,p{margin:0}h1{font-size:clamp(28px,3.4vw,44px);line-height:1.12;letter-spacing:-.045em}h2{font-size:23px;letter-spacing:-.025em}h3{font-size:18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;margin:5px 0 20px}.workspace{display:grid;grid-template-columns:minmax(330px,.88fr) minmax(420px,1.2fr);gap:18px;align-items:start}.panel{background:white;border:1px solid var(--line);border-radius:12px;overflow:hidden}.head,.pad{padding:16px 20px}.head{border-bottom:1px solid var(--line)}input,select,button{font:inherit;color:inherit}input:not([type=file]),select{max-width:100%;border:1px solid #abbeb1;background:white;border-radius:5px;padding:7px 9px}input[type=file]{max-width:100%;font-size:13px}input::file-selector-button,button{border:1px solid #9bb4a5;background:#f9fbf8;color:var(--green);padding:6px 9px;border-radius:6px;margin-right:6px;cursor:pointer}button:hover,input::file-selector-button:hover{background:var(--pale)}:focus-visible{outline:3px solid #538c73;outline-offset:2px}.field{display:grid;gap:4px;margin-top:8px}.fields,.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(144px,1fr));gap:8px}.field span,small,.meta,.sub{font-size:13px;color:var(--muted)}.meta,.sub{margin-top:6px}.err{color:var(--red)}details>summary{cursor:pointer;color:var(--green);padding:5px 0}details>summary:hover,a:hover{text-decoration:underline}a{color:var(--green)}.callout,.spot{padding:10px 12px;background:var(--pale);margin-bottom:10px;border-left:3px solid #71937c}.spot{margin:10px 0}.spot strong,.rule summary small,.fact strong{display:block}.rule summary small{margin-left:17px}.rule{padding:4px;border-bottom:1px solid var(--line)}#catalogueRows{max-height:62vh;min-height:100px;overflow:auto;border-top:1px solid var(--line);margin-top:10px}blockquote{margin:4px 0 8px;padding:4px 9px;background:#f5f7f4;border-left:3px solid #c1d2c3;white-space:pre-line;overflow-wrap:anywhere}.evidence{font-size:14px}.evidence small{display:block;margin-top:5px}.facts{grid-template-columns:2fr 1fr;margin:12px 0}.fact{background:#f2f5ef;padding:9px 11px;border-radius:6px;min-width:0;overflow-wrap:anywhere}.fact:last-child{grid-column:1/-1}.verdict{padding:13px 15px;border-radius:7px;margin:14px 0;background:var(--pale)}.verdict h3{font-size:21px}.unknown,.partial,.suggest{background:var(--sand);color:#654218}.risk,.excluded,.blocked{background:var(--pink);color:var(--red)}.fit,.ok{background:var(--pale);color:var(--green)}.badge{display:inline-block;padding:2px 6px;margin-right:7px;font-size:12px;font-weight:650;border-radius:4px}.route{border-top:1px solid var(--line);padding:8px 0}.check{border-left:2px solid var(--line);padding:4px 9px;margin:6px 0}.rule p,.route p{margin-top:4px}.source{display:inline-block;margin:4px 12px 2px 0}.quiet{margin-top:8px}[hidden]{display:none!important}@media(max-width:840px){.workspace{grid-template-columns:1fr}#catalogueRows{max-height:300px}.head,.pad{padding:14px}}@media(max-width:450px){.facts{grid-template-columns:1fr}}
 </style></head><body><header>Проверка закупок <span>223-ФЗ</span></header><main>
 
-<div class="top"><h1>Проверка прямой закупки</h1><label><small>Учебный договор</small><br><select id="scenario">
-<option value="0">Основание не указано</option><option value="1">Указан ошибочный пункт</option><option value="2">Пункт подтверждён</option><option value="3">Требуется конкурс</option></select></label></div>
-<p class="callout" id="notice"></p><div class="workspace">
-<section class="panel"><div class="head"><h2>Положение о закупке</h2><label class="field" id="policyField"><span>Основной текст и поправки по порядку</span><input id="regFiles" type="file" multiple accept=".pdf,.docx,.txt"></label><p id="pstatus" class="sub" role="status"></p></div>
-<div class="pad"><h3 id="edition"></h3><div id="highlights"></div><div class="fields"><label class="field"><span>Поиск по основаниям</span><input id="groundSearch" type="search" placeholder="Например, связь"></label><label class="field"><span>Категория</span><select id="groundType"></select></label></div><div id="count" class="sub"></div><div id="catalogueRows" tabindex="0"></div></div></section>
-<section class="panel"><div class="head"><h2>Договор и спецификация</h2><label class="field" id="contractField"><span>Договор с приложениями</span><input id="contractFile" type="file" accept=".pdf,.docx,.txt"></label><p class="sub" id="rstatus" role="status"></p></div><div id="report" class="pad" aria-live="polite"></div></section></div>
+<style>
+.heading{display:flex;align-items:center;gap:8px;position:relative}.hint{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;margin:0;border-radius:50%;font-weight:650;line-height:1;color:#245a41;background:#edf4ec}.tipbox{position:absolute;z-index:4;top:100%;left:0;margin:4px 0 0;max-width:min(340px,100%);background:#193a30;color:#fff;border-radius:7px;padding:10px 12px;box-shadow:0 3px 12px #18372c26;font-size:14px}.panel{overflow:visible}.empty-pad:empty{display:none}.tools{display:flex;gap:10px;align-items:center}.tools a{font-size:14px}#catalogueBody[hidden],#report[hidden]{display:none!important}
+</style>
+<div class="top"><h1>Проверка прямой закупки</h1><div class="tools" id="download"><a href="./ep-review-223.zip" download>Локальная версия с ИИ (ZIP)</a></div></div>
+<div class="workspace"><section class="panel"><div class="head"><div class="heading"><h2>Положение о закупке</h2><button type="button" id="helpPolicy" class="hint" aria-label="Какое Положение загрузить" aria-expanded="false" aria-controls="tipPolicy" aria-describedby="tipPolicy">?</button><div class="tipbox" id="tipPolicy" role="tooltip" hidden>Скачайте из ЕИС редакцию на дату закупки. Добавьте основной файл, затем поправки в порядке принятия. Поддерживаются DOCX, PDF с текстом и TXT до 14 МБ каждый. Архив распакуйте заранее.</div></div>
+<label class="field"><span>Основной текст и поправки</span><input id="regFiles" type="file" multiple accept=".pdf,.docx,.txt"></label><p id="pstatus" class="sub" role="status"></p></div>
+<div class="pad" id="catalogueBody" hidden><h3 id="edition"></h3><div id="highlights"></div><div class="fields"><label class="field"><span>Поиск по основаниям</span><input id="groundSearch" type="search"></label><label class="field"><span>Категория</span><select id="groundType"></select></label></div><div id="count" class="sub"></div><div id="catalogueRows" tabindex="0"></div></div></section>
+<section class="panel"><div class="head"><div class="heading"><h2>Договор и спецификация</h2><button type="button" id="helpContract" class="hint" aria-label="Как загрузить договор" aria-expanded="false" aria-controls="tipContract" aria-describedby="tipContract">?</button><div class="tipbox" id="tipContract" role="tooltip" hidden>Выберите договор со спецификацией в одном файле. Проверка начнётся, когда будет загружено Положение. В результате можно раскрыть цитаты с предметом, ценой и указанным заказчиком пунктом.</div></div>
+<label class="field"><span>Договор с приложениями</span><input id="contractFile" type="file" accept=".pdf,.docx,.txt"></label><p class="sub" id="rstatus" role="status"></p></div><div id="report" class="pad" aria-live="polite" hidden></div></section></div>
 </main><script>
 const token="__TOKEN__";
 const local=token!=="__"+"TOKEN__";
@@ -52,91 +55,250 @@ function showReport(data){
   if(d.blocker)host.append(checkNode(d.blocker));
   if(d.selected){host.append(el('h4','Проверка пункта заказчика'),routeNode(d.selected))}
   if(d.alternatives.length){host.append(el('h4',d.selected||d.facts.declared.value?'Какой пункт можно предложить':'Какой пункт подходит по документам'));for(const r of d.alternatives)host.append(routeNode(r))}
-  else if(['excluded','unknown','partial'].includes(d.state)){host.append(el('p','Другого обоснованного варианта по представленным документам не найдено.','spot'))}
+  else if(['excluded','unknown','partial'].includes(d.state)){host.append(el('p','Среди проверенных пунктов другой вариант не выделен.','spot'))}
   const other=d.routes.filter(r=>r.clause!==d.selected?.clause&&!d.alternatives.some(a=>a.clause===r.clause));
   if(other.length&&!d.blocker){const box=fold('Результаты по остальным проверенным основаниям · '+other.length);for(const r of other){const row=fold(r.clause+' · '+(labels[r.state]||r.state));row.append(routeNode(r));box.append(row)}host.append(box)}
   if(data.items.length){const box=fold('Дополнительные проверки договора · '+data.items.length);for(const it of data.items){const n=checkNode({label:it.title+' · '+it.clause,state:it.status,detail:it.detail,policy:it.policy,contract:it.contract});if(it.action)n.append(el('p',it.action,'sub'));box.append(n)}host.append(box)}
-  if(data.document){const box=fold('Текст учебного договора');box.append(el('blockquote',data.document));host.append(box)}
 }
 async function api(url,body){const response=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json','X-Review-Token':token},body:JSON.stringify(body)}:{});const data=await response.json();if(!response.ok)throw Error(data.error||'Не удалось получить результат.');return data}
 async function upload(f){if(!f||!f.size||f.size>14*1024*1024)throw Error('Нужен непустой файл до 14 МБ.');return new Promise((ok,fail)=>{const r=new FileReader();r.onerror=()=>fail(Error('Не удалось прочитать '+f.name));r.onload=()=>ok({name:f.name,data:String(r.result).split(',')[1]});r.readAsDataURL(f)})}
-const rules=[
-  ['Цена','Любые товары, работы или услуги','П. 2.1','До 250 000 ₽ включительно','Заказчик вправе заключить прямой договор с любым предметом при цене одной закупки не выше 250 000 рублей.'],
-  ['Предмет','Услуги телефонной связи','П. 2.2','Собственный порог не указан','Услуги телефонной связи допускается приобретать у единственного поставщика. Покупка оборудования по данному пункту не допускается.'],
-  ['Поставщик','Услуга естественной монополии','П. 2.3','Собственный порог не указан','Прямой договор допускается на услугу естественной монополии при документальном подтверждении статуса исполнителя и отнесения услуги к сфере такой монополии.'],
-  ['Финансирование','Целевой грант','П. 3.1','Свыше 400 000 ₽','При оплате из целевого гранта заказчик проводит конкурс, если сумма договора превышает 400 000 рублей. Требование действует для всех оснований раздела 2.']
-];
-const evidence=(file,place,quote)=>({file,place,quote});
-const synthetic=rules.map(([category,title,clause,limit,rule])=>({category,title,clause,limit,rule,refs:[evidence('Учебное положение',clause,rule)]}));
-const sampleCatalogue={name:'Учебное положение · вымышленный заказчик',entries:synthetic.slice(0,3),controls:synthetic.slice(3)};
-const cases=[
-  {subject:'Поставка цветной бумаги',sum:76000,declared:null,phone:false,grant:false},
-  {subject:'Поставка конвертов',sum:91000,declared:1,phone:false,grant:false},
-  {subject:'Услуги местной телефонной связи',sum:280000,declared:1,phone:true,grant:false},
-  {subject:'Поставка принтеров',sum:480000,declared:0,phone:false,grant:true}
-];
-function makeDemo(i){
-  const c=cases[i], money=c.sum.toLocaleString('ru-RU')+' ₽', clause=c.declared===null?'':synthetic[c.declared].clause;
-  const source=(where,text)=>evidence('Учебный договор '+(i+1),where,text);
-  const preamble=source('Преамбула',clause?'Стороны заключили договор на основании '+clause+' Учебного положения.':'Стороны заключили договор поставки для нужд учебного учреждения.');
-  const sub=source('Спецификация, строка 1',c.subject+'.'),price=source('Раздел о цене','Цена договора составляет '+c.sum+' рублей.'),fund=source('Финансирование',c.grant?'Оплата производится из целевого гранта.':'Оплата производится из собственных средств.');
-  const mk=(idx,label,state,detail,contract)=>({label,state,detail,contract,policy:synthetic[idx].refs});
-  const card=(idx,state,detail,checks)=>({clause:synthetic[idx].clause,title:synthetic[idx].title,state,detail,checks,policy:synthetic[idx].refs});
-  const under=c.sum<=250000;
-  const general=card(0,under?'fit':'excluded',under?'Предмет разрешён, цена укладывается в лимит.':'Цена превышает предел одной закупки.',[
-    mk(0,'Предмет','ok','Пункт допускает закупку с любым предметом.',[sub]),mk(0,'Цена',under?'ok':'risk',money+' при лимите 250 000 ₽.',[price])]);
-  const telecom=card(1,c.phone?'fit':'excluded',c.phone?'В спецификации указана услуга телефонной связи.':'Спецификация предусматривает поставку товара. Пункт охватывает услуги связи.',[
-    mk(1,'Предмет спецификации',c.phone?'ok':'risk',c.subject+'.',[sub])]);
-  const monopoly=card(2,c.phone?'unknown':'excluded',c.phone?'Нужны документы о статусе исполнителя и виде услуги.':'Спецификация предусматривает товар, а пункт охватывает услуги.',[
-    mk(2,'Предмет и статус',c.phone?'unknown':'risk',c.phone?'Статус исполнителя по учебному договору не установлен.':c.subject+'.',[sub])]);
-  const blocker=c.grant&&c.sum>400000?mk(3,'Обязательный способ','risk','Цена '+money+' превышает 400 000 ₽, а источник оплаты — целевой грант. Пункт 3.1 требует конкурса.',[fund,price]):null;
-  const routes=[general,telecom,monopoly],selected=c.declared===null?null:routes[c.declared];
-  const state=blocker?'blocked':selected?selected.state:'suggest';
-  const alternatives=blocker||state==='fit'?[]:routes.filter(r=>r!==selected&&r.state==='fit');
-  return {title:'Учебный договор '+(i+1),meta:'Вымышленный пример',mode:'Сверка с учебным положением',items:[],
-    document:[preamble,sub,price,fund].map(r=>r.quote).join('\n'),
-    decision:{facts:{subject:{value:c.subject,refs:[sub]},price:{value:money,refs:[price]},declared:{value:clause,refs:[preamble],note:clause?'Основание указано в преамбуле.':'Конкретный пункт в учебном договоре отсутствует.'}},
-      title:{suggest:'Есть возможное основание',excluded:'Не соответствует указанному основанию',fit:'Соответствует указанному основанию',blocked:'Прямая закупка невозможна по учебному положению'}[state],
-      detail:blocker?blocker.detail:selected?selected.detail:'Пункт 2.1 подходит по предмету и цене. В договоре выбор этого пункта заказчиком не зафиксирован.',routes,selected,alternatives,blocker,state}};
+/* Read an uploaded document in its current tab. Only PDF.js code is downloaded. */
+const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
+function fileRows(file,parts){const rows=parts.filter(x=>clean(x[1])).map(([place,t])=>({file,place,text:clean(t)}));if(!rows.length||!rows.some(r=>/[а-яёa-z]{2}/i.test(r.text)))throw Error('Не найден текст в '+file+'. Для скана используйте PDF после OCR.');if(rows.reduce((n,r)=>n+r.text.length,0)>1400000)throw Error('Документ превышает 1,4 млн знаков.');return rows}
+async function readDocx(bytes){
+  const v=new DataView(bytes),len=v.byteLength,decoder=new TextDecoder(),files=new Map();
+  if(len<22)throw Error('Повреждён DOCX.');
+  let end=len-22;while(end>=Math.max(0,len-65557)&&v.getUint32(end,true)!==0x06054b50)end--;
+  if(end<Math.max(0,len-65557))throw Error('Не удалось прочитать структуру DOCX.');
+  let p=v.getUint32(end+16,true);
+  for(let n=0;n<v.getUint16(end+10,true);n++){
+    if(v.getUint32(p,true)!==0x02014b50)throw Error('Не удалось прочитать каталог DOCX.');
+    const nl=v.getUint16(p+28,true),name=decoder.decode(new Uint8Array(bytes,p+46,nl));
+    if(['word/document.xml','word/numbering.xml'].includes(name))files.set(name,{method:v.getUint16(p+10,true),compressed:v.getUint32(p+20,true),size:v.getUint32(p+24,true),offset:v.getUint32(p+42,true)});
+    p+=46+nl+v.getUint16(p+30,true)+v.getUint16(p+32,true);
+  }
+  async function xml(name){
+    const f=files.get(name);if(!f)return null;
+    if(f.size>24000000)throw Error('Слишком большой текст внутри DOCX.');
+    const o=f.offset;if(v.getUint32(o,true)!==0x04034b50)throw Error('Повреждён DOCX.');
+    const chunk=new Uint8Array(bytes,o+30+v.getUint16(o+26,true)+v.getUint16(o+28,true),f.compressed);
+    let raw;
+    if(f.method===0)raw=chunk;
+    else if(f.method===8){
+      const reader=new Blob([chunk]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader(),parts=[];let size=0;
+      for(;;){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>f.size||size>24000000){await reader.cancel();throw Error('Слишком большой текст внутри DOCX.')}parts.push(value)}
+      raw=await new Blob(parts).arrayBuffer();
+    }else throw Error('Тип сжатия DOCX не поддерживается.');
+    const doc=new DOMParser().parseFromString(decoder.decode(raw),'application/xml');
+    if(doc.getElementsByTagName('parsererror').length)throw Error('Ошибка XML в DOCX.');return doc;
+  }
+  const ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main',all=(n,k)=>Array.from(n?.getElementsByTagNameNS(ns,k)||[]),attr=(n,k='val')=>n?.getAttributeNS(ns,k);
+  const doc=await xml('word/document.xml');if(!doc)throw Error('В DOCX отсутствует текст документа.');
+  const nums=await xml('word/numbering.xml'),abstracts=new Map(),lists=new Map();
+  for(const a of all(nums,'abstractNum')){
+    const levels={};for(const l of all(a,'lvl'))levels[attr(l,'ilvl')]={format:attr(all(l,'numFmt')[0]),start:Number(attr(all(l,'start')[0])||1),pattern:attr(all(l,'lvlText')[0])||''};
+    abstracts.set(attr(a,'abstractNumId'),levels);
+  }
+  for(const n of all(nums,'num')){
+    const levels=structuredClone(abstracts.get(attr(all(n,'abstractNumId')[0]))||{});
+    for(const l of all(n,'lvlOverride')){const idx=attr(l,'ilvl'),start=attr(all(l,'startOverride')[0]);if(start!=null&&levels[idx])levels[idx].start=Number(start)}
+    lists.set(attr(n,'numId'),{levels,counts:{}});
+  }
+  return all(doc,'p').map((p,i)=>{
+    let body=all(p,'t').map(n=>n.textContent).join('');
+    const num=all(p,'numPr')[0],list=lists.get(attr(all(num,'numId')[0])),lvl=Number(attr(all(num,'ilvl')[0])||0);
+    if(body&&list?.levels[lvl]?.format==='decimal'){
+      const l=list.levels[lvl];list.counts[lvl]=(list.counts[lvl]??l.start-1)+1;
+      for(const k of Object.keys(list.counts))if(Number(k)>lvl)delete list.counts[k];
+      body=l.pattern.replace(/%([1-9])/g,(_,n)=>list.counts[Number(n)-1]??list.levels[Number(n)-1]?.start??1)+' '+body;
+    }
+    return ['абз. '+(i+1),body];
+  });
 }
+let pdfLib;
+async function readPDF(bytes){
+  if(!pdfLib){const base='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/';pdfLib=await import(base+'pdf.min.mjs').catch(()=>{throw Error('Не загрузился модуль чтения PDF. Проверьте соединение или откройте локальную версию.')});pdfLib.GlobalWorkerOptions.workerSrc=base+'pdf.worker.min.mjs'}
+  const doc=await pdfLib.getDocument({data:new Uint8Array(bytes),isEvalSupported:false,useSystemFonts:true}).promise,parts=[];
+  try{if(doc.numPages>350)throw Error('Допускаются PDF до 350 страниц.');
+    for(let i=1;i<=doc.numPages;i++){
+      const page=await doc.getPage(i),text=await page.getTextContent();let line='',lines=[];
+      for(const v of text.items){if(typeof v.str!=='string')continue;line+=v.str+' ';if(v.hasEOL){if(clean(line))lines.push(clean(line));line=''}}
+      if(clean(line))lines.push(clean(line));
+      if(!lines.length){const ops=await page.getOperatorList();if(ops.fnArray.some(op=>[pdfLib.OPS.paintImageXObject,pdfLib.OPS.paintInlineImageXObject,pdfLib.OPS.paintImageMaskXObject].includes(op)))throw Error('На странице '+i+' нет текстового слоя. Распознайте PDF и загрузите его повторно.')}
+      for(const t of lines)parts.push(['стр. '+i,t]);
+    }
+    return parts;
+  }finally{await doc.destroy()}
+}
+async function readDocument(f){
+  if(!f?.size||f.size>14*1024*1024)throw Error('Выберите непустой файл до 14 МБ.');
+  const bytes=await f.arrayBuffer(),ext=f.name.toLowerCase().split('.').pop();let parts;
+  if(ext==='txt'){let t;try{t=new TextDecoder('utf-8',{fatal:true}).decode(bytes)}catch{t=new TextDecoder('windows-1251').decode(bytes)}parts=t.split(/\r?\n/).map((s,i)=>['строка '+(i+1),s])}
+  else if(ext==='pdf')parts=await readPDF(bytes);
+  else if(ext==='docx')parts=await readDocx(bytes);
+  else throw Error('Выберите PDF, DOCX или TXT. Архив из ЕИС сначала распакуйте.');
+  return fileRows(f.name,parts);
+}
+
+/* Preliminary document review. Every extracted value retains a location in the uploaded file. */
+const norm=s=>clean(s).toLowerCase().replaceAll('ё','е');
+const epWords=/единственн\w* (?:поставщик|подрядчик|исполнител)|единственн[а-яё]* (?:поставщик|подрядчик|исполнител)|прям[а-яё]* закупк/i;
+const amountPat=/(\d+(?:[ \u00a0\u202f]\d{3})*(?:[.,]\d{1,2})?)\s*(?:\([^()]{1,110}\)\s*)?(?:(тыс(?:яч[аиу]?)?\.?|млн\.?|миллион[а-я]*)\s*)?(?:руб(?:лей|ля|ль|\.)?|₽)(?![а-я])/ig;
+const evidence=r=>({file:r.file,place:r.place,quote:r.text});
+function amounts(text){return Array.from(text.matchAll(new RegExp(amountPat)),m=>({label:m[0],value:Math.round(Number(m[1].replace(/\s/g,'').replace(',','.'))*100)*(!m[2]?1:/^тыс/i.test(m[2])?1000:1000000),index:m.index}))}
+function grouping(rows){
+  const blocks=[];
+  for(const r of rows){
+    const last=blocks.at(-1);
+    // Rejoin wrapped lines of a PDF paragraph, keeping a page location for every quote.
+    const heading=/^(?:\d+(?:\.\d+)+[.)]?\s|\d+[.)]\s|статья\s|раздел\s|глава\s)/i.test(r.text);
+    if(last&&r.place.startsWith('стр. ')&&r.place===last.place&&!heading&&!/[.!?;:]$/.test(last.text)&&last.text.length<5000)last.text=clean(last.text+' '+r.text);
+    else blocks.push({...r});
+  }
+  return blocks;
+}
+function catalogueFrom(documents){
+  const entries=[],controls=[],seen=new Set();
+  for(const rows of documents){
+    let section='',parent='',listParent='',active=false,inList=false,previous=null;
+    for(const r of grouping(rows)){
+      const t=r.text,n=norm(t);
+      if(/\.{3,}|^оглавление$|^содержание$/i.test(t))continue;
+      const heading=t.match(/^(?:статья|глава|раздел)\s+([\d.]+)[.:)\s–-]+(.+)/i);
+      const point=t.match(/^(\d+(?:\.\d+)+)[.)]?\s+(.+)/),item=t.match(/^(\d{1,3})\)\s*(.+)/);
+      const topNumber=t.match(/^(\d{1,3})\.\s+(.+)/);
+      if(heading||topNumber&&!inList){const h=heading||topNumber;section=h[1].replace(/\.$/,'');active=epWords.test(t);inList=false;parent='';previous=null}
+      if(point){
+        if(section&&point[1].split('.')[0]!==section.split('.')[0]){active=false;section=''}
+        parent=point[1];inList=false;previous=null;
+      }
+      const introduces=(epWords.test(n)||active)&&/(?:следующ[а-я]+ случа|в следующ[а-я]+ ситуаци|основани[а-я]*.{0,35}(?:перечислен|предусмотрен)|(?:вправе|допускается).{0,45}:$)/i.test(n);
+      if(introduces){inList=true;listParent=parent||section;previous=null;continue}
+      if(heading)continue;
+      const numberedItem=item||(inList?topNumber:null);
+      const numbered=Boolean(numberedItem||point);
+      if(!numbered&&previous&&inList&&!epWords.test(t)){
+        if(previous.rule.length<8500){previous.rule+=' '+t;previous.refs.push(evidence(r))}
+        continue;
+      }
+      if(!(inList&&numberedItem)&&!((active||epWords.test(n))&&numbered)&&!epWords.test(n)){previous=null;continue}
+      if(t.length<45||n.length<64&&/порядок|способ закупки/.test(n))continue;
+      const clause=numberedItem&&inList?'Подп. '+numberedItem[1]+(listParent?' п. '+listParent:''):point?'П. '+point[1]:r.place;
+      const key=r.file+'|'+clause+'|'+t;if(seen.has(key))continue;seen.add(key);
+      const body=(numberedItem?.[2]||point?.[2]||t).trim();
+      const procedure=/планировани|срок оплаты|предварительн[а-я]* процедур|размещени[а-я]* (?:извещени|информаци)|субсиди|реестр[а-я]* недобросовестн|дроблени/i.test(body);
+      const isGround=Boolean(inList&&numberedItem)||(!procedure&&epWords.test(n)&&/вправе|допуска|может|в случа/i.test(n));
+      const category=isGround?(/стоимост|на сумму|цена/i.test(body)&&/товаров,?\s*работ,?\s*(?:или\s+)?услуг/i.test(body.slice(0,160))?'Цена':'Основание'):'Условие';
+      const money=amounts(body),cap=money.find(a=>/(?:не (?:должн[а-я]* )?превыша[а-я]*|не более|до)\s*$/i.test(body.slice(0,a.index)));
+      const ambiguousUpper=cap&&/до\s*$/i.test(body.slice(0,cap.index))&&!/включительно/i.test(body);
+      const card={title:body.length>116?body.slice(0,113)+'…':body,clause,rule:t,category,limit:money.map(a=>a.label).join(' · '),refs:[evidence(r)],cap:category==='Цена'&&cap&&money.length===1?cap.value:null,ambiguousUpper};
+      (isGround?entries:controls).push(card);previous=numberedItem&&inList?card:null;
+    }
+  }
+  return {name:documents.map(d=>d[0].file).join(' · '),entries,controls};
+}
+function contractFacts(rows){
+  const parts=grouping(rows),hits=[],subjects=[],claims=[];
+  for(const r of parts){
+    const t=r.text;
+    const prices=/(?:итогов[а-я]*\s+)?(?:цен[аы]|стоимость)\s+(?:(?:поставки\s+по\s+)?(?:настоящему|настоящего|данному|данного|по данному)\s+)?(?:договор[ау]?|контракт[ау]?)\s*[:—–-]?\s*(?:составляет|равна|определена в размере|:|—|–|-)?\s*$/i;
+    for(const a of amounts(t)){if(prices.test(t.slice(0,a.index)))hits.push({amount:a.value,label:a.label,ref:evidence(r)})}
+    const subj=t.match(/(?:предмет(?:ом)?\s+(?:настоящего\s+)?(?:договора|контракта)|спецификация)\s*(?:является|составляет|:|—|–|-)\s*(.{5,225})/i)||t.match(/(?:поставщик|исполнитель|подрядчик)\s+обязуется\s+(.{8,220})/i);
+    if(subj)subjects.push({label:subj[1],ref:evidence(r)});
+    if(/положени[а-яё]*\s+о\s+закуп|(?:закупк[аи]|договор|контракт).{0,30}(?:на основании|в соответствии с)/i.test(t)){
+      const m=t.match(/(?:подп(?:ункт[а-яё]*|\.)|пп\.)\s*(\d{1,3})[),\s]+(?:пункт[а-яё]*|п\.)\s*(\d+(?:\.\d+)*)/i);
+      const p=t.match(/(?:пункт[а-яё]*|п\.)\s*(\d+(?:\.\d+)+)\s+(?:[^.]{0,25})?положени/i);
+      if(m||p)claims.push({label:m?'Подп. '+m[1]+' п. '+m[2]:'П. '+p[1],ref:evidence(r)});
+    }
+  }
+  const annex=rows.findIndex(r=>/^спецификация(?:\s|$)/i.test(r.text));
+  const specRefs=[];
+  if(annex>=0){
+    for(const r of rows.slice(annex+1,annex+90)){
+      if(/^(итого|всего наименований|подписи сторон)/i.test(r.text)||specRefs.length>=3)break;
+      if(r.text.length<7||!/[а-яё]{3,}/i.test(r.text)||/^(к договору|№|наименовани[ея]|количество|цена|сумма|товары\s*\(работы|единица измерения|спецификация)/i.test(r.text))continue;
+      specRefs.push(evidence(r));
+    }
+  }
+  const unique=(arr,key)=>new Set(arr.map(a=>a[key])).size===1?arr[0]:null;
+  const price=unique(hits,'amount'),claim=unique(claims,'label'),subject=subjects[0];
+  return {price,claim,subject,facts:{
+    subject:{value:subject?.label||(specRefs.length?'См. позиции спецификации':''),refs:[...(subject?[subject.ref]:[]),...specRefs]},price:{value:price?.label||'',refs:price?[price.ref]:hits.map(p=>p.ref)},
+    declared:{value:claim?.label||'',refs:claims.map(p=>p.ref),note:claims.length&&!claim?'Обнаружено несколько ссылок. Уточните основание по документу.':''}}};
+}
+function preliminary(catalogue,rows){
+  const {facts,price,claim,subject}=contractFacts(rows),cards=catalogue.entries;
+  const candidates=cards.filter(c=>claim&&norm(c.clause)===norm(claim.label));
+  const selectedCard=candidates.length===1?candidates[0]:null;
+  const evaluate=c=>{
+    const quoted=c.refs,checks=[];
+    let state='unknown',detail='Сверьте предмет, спецификацию и специальные условия пункта.';
+    if(c.cap!=null&&price&&!(c.ambiguousUpper&&price.amount===c.cap)){
+      const fits=price.amount<=c.cap;
+      checks.push({label:'Цена',state:fits?'ok':'risk',detail:fits?'Сумма укладывается в указанный предел.':'Цена превышает предел одной закупки.',policy:quoted,contract:[price.ref]});
+      if(!fits){state='excluded';detail='Цена договора превышает предел этого пункта.'}
+      else if(subject){state='partial';detail='Цена укладывается в предел общего основания. Проверьте остальные условия по цитате.'}
+    }
+    if(state!=='excluded')checks.push({label:'Условия пункта',state:'unknown',detail:'Нужна сверка полной редакции и подтверждающих документов.',policy:quoted,contract:subject?[subject.ref]:[]});
+    return {title:c.title,clause:c.clause,state,detail,checks,policy:quoted};
+  };
+  const selected=selectedCard?evaluate(selectedCard):null;
+  const alternatives=cards.filter(c=>c!==selectedCard&&c.cap!=null&&price&&subject&&price.amount<=c.cap&&!(c.ambiguousUpper&&price.amount===c.cap)&&cards.filter(x=>x.clause===c.clause).length===1).map(evaluate);
+  const state=selected?.state||(alternatives.length?'suggest':'unknown');
+  const title=state==='excluded'?'Цена не соответствует указанному пункту':state==='suggest'?'Найден пункт для проверки':selected?'Пункт заказчика найден':'Требуется сверка оснований';
+  return {title:rows[0].file,mode:'Предварительная сверка в браузере',meta:'По загруженным документам',items:[],decision:{facts,state,title,detail:selected?.detail||(alternatives.length?'Проверьте дополнительные условия предложенного пункта.':'Для смысловой проверки предмета, специальных оснований и поправок используйте локальную версию с ИИ.'),selected,alternatives,routes:[],blocker:null}};
+}
+
+
+let version=0,reviewNo=0,policyId='',policyError=false;
 function displayCatalogue(d){
-  currentCatalogue=d;$('edition').textContent=d.name;$('groundSearch').value='';
+  currentCatalogue=d;$('catalogueBody').hidden=false;$('edition').textContent=d.name;$('groundSearch').value='';
   const types=$('groundType');types.replaceChildren();option(types,'','Все категории');for(const name of new Set(allRules().map(r=>r.category)))option(types,name,name);
-  const h=$('highlights');h.replaceChildren();for(const r of d.entries.filter(r=>r.category==='Цена')){const card=el('div',null,'spot');card.append(el('strong',r.title),el('p',r.limit||r.rule),el('small',r.clause));refs(card,r.refs);h.append(card)}
+  const h=$('highlights');h.replaceChildren();
+  for(const r of d.entries.filter(r=>r.category==='Цена'&&r.limit)){const card=el('div',null,'spot');card.append(el('strong',r.clause),el('p',r.limit));refs(card,r.refs);h.append(card)}
   drawCatalogue();
 }
-let version=0,reviewNo=0,policyId='';
-function displaySample(){
-  ++version;++reviewNo;policyId='';$('regFiles').value='';$('contractFile').value='';
-  displayCatalogue(sampleCatalogue);showReport(makeDemo(Number($('scenario').value)));
-  $('pstatus').textContent='Учебные правила и суммы придуманы для демонстрации.';
-  $('rstatus').textContent='Цитаты можно раскрыть под каждым выводом.';
-}
+function clearReport(){++reviewNo;$('report').hidden=true;$('report').replaceChildren()}
 async function loadPolicy(){
-  if(!local)return;
-  const seq=++version;++reviewNo;policyId='';currentCatalogue=null;$('catalogueRows').replaceChildren();$('count').textContent='';$('edition').textContent='';$('groundType').replaceChildren();$('highlights').replaceChildren();$('report').replaceChildren();$('scenario').selectedIndex=-1;
-  const chosen=Array.from($('regFiles').files);if(!chosen.length)return;
-  if(chosen.length>8){$('pstatus').textContent='Можно загрузить до восьми файлов одним комплектом.';return}
-  $('pstatus').textContent='Извлекаем правила, проверяем цитаты…';
-  $('rstatus').textContent=$('contractFile').files.length?'Договор ожидает Положение.':'Выберите договор с приложениями.';
+  const seq=++version;policyId='';policyError=false;currentCatalogue=null;clearReport();$('catalogueBody').hidden=true;
+  const chosen=Array.from($('regFiles').files);
+  message('pstatus','');message('rstatus',$('contractFile').files.length?'Договор выбран. Ожидается Положение.':'');
+  if(!chosen.length)return;
+  if(chosen.length>8){policyError=true;message('pstatus','Выберите основной текст и до семи поправок.');return}
+  message('pstatus',local?'Модель извлекает правила и проверяет цитаты…':'Читаем Положение…');
   try{
-    const data=await api('/api/policies',{files:await Promise.all(chosen.map(upload))});if(seq!==version)return;
-    policyId=data.id;displayCatalogue(data.catalogue);$('pstatus').textContent='Правила извлечены из загруженной редакции.';if($('contractFile').files.length)await reviewFile();
-  }catch(e){if(seq===version)message('pstatus',e.message,loadPolicy)}
+    const data=local?await api('/api/policies',{files:await Promise.all(chosen.map(upload))}):{id:'browser',catalogue:catalogueFrom(await Promise.all(chosen.map(readDocument)))};
+    if(seq!==version)return;
+    policyId=data.id;displayCatalogue(data.catalogue);message('pstatus',local?'Правила извлечены из выбранной редакции.':allRules().length?'Найдены фрагменты о прямой закупке. Сверьте полноту списка с Положением.':'Явные пункты о прямой закупке не распознаны. Проверьте текст документа или воспользуйтесь локальной версией с ИИ.');
+    if($('contractFile').files.length)await reviewFile();
+  }catch(e){if(seq===version){policyError=true;message('pstatus',e.message,loadPolicy);if($('contractFile').files.length)message('rstatus','Сначала исправьте ошибку чтения Положения.');}}
 }
 async function reviewFile(){
-  if(!local)return;
-  const sv=version,seq=++reviewNo,f=$('contractFile').files[0];$('report').replaceChildren();
-  if(!f||!policyId){$('rstatus').textContent='Выберите Положение и договор с приложениями.';return}
-  $('rstatus').textContent='Проверяем основания по загруженной редакции…';
-  try{const result=await api('/api/review',{policy_id:policyId,contract:await upload(f)});if(seq!==reviewNo||sv!==version)return;showReport(result);$('rstatus').textContent='Проверка завершена.'}
+  clearReport();const sv=version,seq=reviewNo,f=$('contractFile').files[0];
+  if(!f){message('rstatus','');return}
+  if(!policyId){message('rstatus',policyError?'Сначала исправьте ошибку чтения Положения.':'Договор выбран. Ожидается Положение.');return}
+  message('rstatus','Читаем договор и сопоставляем его с Положением…');
+  try{const result=local?await api('/api/review',{policy_id:policyId,contract:await upload(f)}):preliminary(currentCatalogue,await readDocument(f));if(seq!==reviewNo||sv!==version)return;showReport(result);$('report').hidden=false;message('rstatus',local?'Проверка завершена.':'Предварительная сверка завершена.')}
   catch(e){if(seq===reviewNo&&sv===version)message('rstatus',e.message,reviewFile)}
 }
-$('groundSearch').oninput=drawCatalogue;$('groundType').onchange=drawCatalogue;$('scenario').onchange=displaySample;
+function attachHints(){
+  const pairs=[['helpPolicy','tipPolicy'],['helpContract','tipContract']].map(([a,b])=>({button:$(a),tip:$(b),locked:false}));
+  function set(p,open){p.tip.hidden=!open;p.button.setAttribute('aria-expanded',String(open));if(!open)p.locked=false}
+  function closeExcept(p){for(const other of pairs)if(other!==p)set(other,false)}
+  for(const p of pairs){
+    const wrap=p.button.parentElement;
+    p.button.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){closeExcept(p);set(p,true)}});
+    wrap.addEventListener('pointerleave',()=>{if(!p.locked&&document.activeElement!==p.button)set(p,false)});
+    p.button.addEventListener('focus',()=>{closeExcept(p);set(p,true)});
+    p.button.addEventListener('blur',()=>set(p,false));
+    p.button.addEventListener('click',()=>{closeExcept(p);if(p.locked)set(p,false);else{set(p,true);p.locked=true}});
+  }
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeExcept(null)});
+  document.addEventListener('pointerdown',e=>{if(!pairs.some(p=>p.button===e.target||p.tip.contains(e.target)))closeExcept(null)});
+}
+$('groundSearch').oninput=drawCatalogue;$('groundType').onchange=drawCatalogue;
 $('regFiles').onchange=loadPolicy;$('contractFile').onchange=reviewFile;
-$('policyField').hidden=$('contractField').hidden=!local;
-if(local){$('notice').textContent='Для работы со своими документами загрузите Положение и договор. Файлы обработает настроенная вами модель.'}
-else{const a=el('a','Скачать приложение для своих документов (ZIP)');a.href='./ep-review-223.zip';a.download='ep-review-223.zip';if(location.protocol==='file:')$('notice').textContent='Для проверки своих документов запустите start.cmd из распакованного архива.';else $('notice').append('Публичное демо на вымышленных документах. ',a)}
-displaySample();
+$('download').hidden=local||location.protocol==='file:';
+attachHints();
 
 </script></body></html>

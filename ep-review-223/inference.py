@@ -22,7 +22,7 @@ def request(path, payload=None):
         with urllib.request.urlopen(req, timeout=240 if payload else 4) as response:
             return json.load(response)
     except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise ModelUnavailable("Сервис модели недоступен. Проверьте адрес API, модель и ключ в настройках запуска. Для встроенного примера подключение не требуется.") from e
+        raise ModelUnavailable("Сервис модели недоступен. Проверьте адрес API, модель и ключ в настройках запуска.") from e
 
 
 def model_name():
