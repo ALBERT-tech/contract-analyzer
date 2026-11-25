@@ -77,7 +77,51 @@ def word_paragraphs(data):
             yield "абз. " + str(n), body
 
 
-def passages(name, data, prefix):
+def clause_passages(rows):
+    units = []
+    current = None
+    table = False
+    next_item = 1
+    for place, text in rows:
+        line = clean(text).lstrip("«„“\"")
+        heading = re.match(r"^(статья|глава|раздел|приложение|спецификация)(?:\s+№?\s*\d|\s*№|\s*$)", line, re.I)
+        if heading:
+            current = None
+            table = heading[1].lower() == "спецификация"
+            next_item = 1
+        item = table and re.match(r"^(\d+)(?:[.)]?\s+\D|$)", line)
+        starts_item = bool(item and int(item[1]) == next_item)
+        if starts_item:
+            next_item += 1
+        summary = table and re.match(r"^(итого|всего наименований|подписи сторон)", line, re.I)
+        if summary:
+            table = False
+        numbered = re.match(r"^(\d+(?:\.\d+)+)\.?(?:\s|$)|^пункт\s+(\d+)[.:]?\s|^(\d+)\.\s+", line, re.I)
+        num = next((x for x in numbered.groups() if x), "") if numbered else ""
+        sub = bool(re.match(r"^(?:\d+|[а-яё])\)\s*", line, re.I))
+        if current is None or num or sub or starts_item or summary or (not current["structured"] and not table and (not place.startswith("стр. ") or place != current["end"])):
+            current = dict(start=place, end=place, lines=[], num=num, sub=sub, structured=bool(num or sub or starts_item))
+            units.append(current)
+        current["end"] = place
+        current["lines"].append(clean(text))
+    parent = None
+    for i, unit in enumerate(units):
+        end = i + 1
+        if unit["num"]:
+            while end < len(units) and (units[end]["sub"] or units[end]["num"].startswith(unit["num"] + ".")):
+                end += 1
+        rows_in_clause = units[i:end]
+        last = rows_in_clause[-1]["end"]
+        place = unit["start"] if last == unit["start"] else unit["start"] + " — " + last
+        full = "\n".join(" ".join(row["lines"]) for row in rows_in_clause)
+        source = dict(text=" ".join(unit["lines"]), place=place, full=full)
+        if unit["sub"] and parent:
+            source["parent"] = parent
+        elif not unit["sub"]:
+            parent = dict(place=place, quote=full) if unit["num"] else None
+        yield source
+
+def passages(name, data, prefix, structured=False):
     suffix = Path(name).suffix.lower()
     if suffix == ".docx":
         rows = list(word_paragraphs(data))
@@ -91,6 +135,9 @@ def passages(name, data, prefix):
                 txt = page.get_text()
                 if len(clean(txt)) < 35 and page.get_images():
                     raise ValueError(f"Страница {n} файла {name} содержит скан. Загрузите PDF с распознанным текстом.")
+                if structured:
+                    rows.extend((f"стр. {n}", clean(line)) for line in txt.splitlines() if clean(line))
+                    continue
                 for j in range(0, len(txt), 5500):
                     # Keep a small overlap for clauses which cross a block boundary.
                     part = clean(txt[max(0,j-400):j+5500])
@@ -103,6 +150,10 @@ def passages(name, data, prefix):
             txt = data.decode("cp1251")
         rows = []
         for n, line in enumerate(txt.splitlines(), 1):
+            if structured:
+                if clean(line):
+                    rows.append((f"строка {n}", clean(line)))
+                continue
             for j in range(0, len(line), 5500):
                 if clean(line[j:j+5500]):
                     rows.append((f"строка {n}", clean(line[j:j+5500])))
@@ -112,6 +163,8 @@ def passages(name, data, prefix):
         raise ValueError(f"В файле {name} не найден читаемый текст.")
     if sum(len(body) for _, body in rows) > 1_400_000:
         raise ValueError("Документ превышает лимит прототипа в 1,4 млн знаков.")
+    if structured:
+        return [dict(id=f"{prefix}.{i}", file=name, **unit) for i,unit in enumerate(clause_passages(rows),1)]
     return [dict(id=f"{prefix}.{i}", file=name, place=place, text=txt) for i,(place,txt) in enumerate(rows,1)]
 
 
@@ -119,4 +172,7 @@ def proof(block, quote=None):
     quote = clean(quote or block["text"])
     if not quote or quote not in block["text"]:
         raise ValueError("Не удалось подтвердить цитату в оригинале.")
-    return dict(id=block["id"], file=block["file"], place=block["place"], quote=quote)
+    evidence = dict(id=block["id"], file=block["file"], place=block["place"], quote=block.get("full",quote),excerpt=quote)
+    if block.get("parent"):
+        evidence["parent"] = block["parent"]
+    return evidence

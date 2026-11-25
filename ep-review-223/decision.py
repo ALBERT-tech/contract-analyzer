@@ -74,10 +74,10 @@ def model_decision(grounds, rows, controls, facts_only=False):
         raise ValueError("Договор превышает 115 тыс. знаков.")
     model = inference.model_name()
     docs = inference.compact(rows)
-    rules = [dict(n=i,clause=g["clause"],rule=g["rule"]) for i,g in enumerate(grounds)]
-    common=[dict(n=i,clause=c["clause"],rule=c["rule"]) for i,c in enumerate(controls)]
-    prompt = FACT_PROMPT + " В поле indicators верни список фактических признаков специального основания (услуга, особый статус поставщика, событие) в формате [{value, citations}]. Для каждого укажи дословные цитаты. При отсутствии признаков верни []. Сумму и стандартный форс-мажор исключи."
-    raw = inference.generate(prompt, dict(documents=docs, catalogue=rules,common_conditions=common), model)
+    rules = [dict(n=i,clause=g["clause"],rule=g["rule"],source=g["refs"]) for i,g in enumerate(grounds)]
+    common=[dict(n=i,clause=c["clause"],rule=c["rule"],source=c["refs"]) for i,c in enumerate(controls)]
+    prompt = FACT_PROMPT + " Когда в договоре указана только поставка товара, установи группы товаров по полной спецификации и приложи отдельные дословные наименования для подтверждения."
+    raw = inference.generate(prompt, dict(documents=docs, catalogue=[dict(n=r["n"],clause=r["clause"]) for r in rules]), model)
     facts = {}
     selected = None
     for name in ("subject","price","declared"):
@@ -86,11 +86,11 @@ def model_decision(grounds, rows, controls, facts_only=False):
         value = str(obj.get("value") or "").strip() if refs else ""
         if name == "price" and value:
             if obj.get("currency")=="RUB" and any(re.search(r"₽|руб|RUB",r["quote"],re.I) for r in refs):
-                value = currency(inference.decimal_from_quote(value," ".join(r["quote"] for r in refs)))
+                value = currency(inference.decimal_from_quote(value," ".join(r.get("excerpt",r["quote"]) for r in refs)))
             else:
                 value = ""
         if name == "declared":
-            quote = " ".join(r["quote"] for r in refs)
+            quote = " ".join(r.get("excerpt",r["quote"]) for r in refs)
             idx = obj.get("n")
             # A quotation must support both the literal reference and its mapping to the catalogue.
             if value and value.casefold() not in quote.casefold():
@@ -109,16 +109,6 @@ def model_decision(grounds, rows, controls, facts_only=False):
         else:
             facts["price"]=fact("",[price_evidence,*facts["price"]["refs"]])
     facts["declared"]["matched"] = selected is not None
-    indicators = raw.get("indicators")
-    facts["indicators"] = []
-    for item in indicators if isinstance(indicators, list) else []:
-        try:
-            evidence = verified(rows, item["citations"])
-            if evidence and item.get("value"):
-                facts["indicators"].append(fact(str(item["value"]), evidence))
-        except (KeyError, ValueError, TypeError):
-            continue
-    facts["indicatorsComplete"] = isinstance(indicators, list) and len(facts["indicators"]) == len(indicators)
     if facts_only:
         return facts
     if facts["declared"]["value"] and selected is None:
@@ -127,7 +117,7 @@ def model_decision(grounds, rows, controls, facts_only=False):
     for start in range(0,len(rules),6):
         target=rules[start:start+6]
         numeric_prompt=' Для сравнения числового условия укажи в проверке comparison={"actual":"число","limit":"число","op":"lt|le|eq|ge|gt"} для условия actual op limit. Сравнивай только в одинаковых единицах, с одной базой расчёта и с учётом включительности границ. Если единицы или предел неоднозначны, дай unknown.'
-        result=inference.generate(CHECK_PROMPT+numeric_prompt,dict(target_grounds=target,common_conditions=common,documents=docs),model)["routes"]
+        result=inference.generate(CHECK_PROMPT+numeric_prompt+" Оценивай только признаки, следующие из текста конкретного переданного основания и его отсылок. Для специального основания в specific_citations дай ссылки {id,quote} на признак из договора; если он не найден, верни [].",dict(target_grounds=target,common_conditions=common,documents=docs),model)["routes"]
         if not isinstance(result,list) or sorted(x["n"] for x in result)!=[r["n"] for r in target] or any(type(x["n"]) is not int for x in result):
             raise ValueError("Модель пропустила или повторила основание. Повторите проверку.")
         for entry in sorted(result,key=lambda x:x["n"]):
@@ -150,8 +140,8 @@ def model_decision(grounds, rows, controls, facts_only=False):
                 cmp=x.get("comparison")
                 if cmp and state in {"ok","risk"}:
                     try:
-                        actual=inference.decimal_from_quote(cmp["actual"]," ".join(r["quote"] for r in ev))
-                        limit=inference.decimal_from_quote(cmp["limit"]," ".join(r["quote"] for r in refs))
+                        actual=inference.decimal_from_quote(cmp["actual"]," ".join(r.get("excerpt",r["quote"]) for r in ev))
+                        limit=inference.decimal_from_quote(cmp["limit"]," ".join(r.get("excerpt",r["quote"]) for r in refs))
                         meets={"lt":lt,"le":le,"eq":eq,"ge":ge,"gt":gt}[cmp["op"]](actual,limit)
                         if meets!=(state=="ok"):
                             raise ValueError("Числовой вывод противоречит сравнению.")
@@ -162,6 +152,9 @@ def model_decision(grounds, rows, controls, facts_only=False):
                 checks.append(check(x["label"],state,detail,refs,ev))
             states={x["state"] for x in checks}
             anchored = entry.get("anchor") is True and "ok" in states and bool(facts["subject"]["value"])
+            specific = verified(rows, entry.get("specific_citations", [])) if card.get("category") != "Цена" else []
+            if card.get("category") != "Цена":
+                anchored = anchored and bool(specific)
             if card.get("category")=="Цена":
                 anchored=anchored and verified_price
             if "risk" in states:
@@ -173,7 +166,7 @@ def model_decision(grounds, rows, controls, facts_only=False):
             detail=entry["detail"]
             if state=="unknown" and checks:
                 detail=next((x["detail"] for x in checks if x["state"]=="unknown"),"Основание по представленным документам не подтверждено.")
-            routes.append(route(card,state,detail,checks))
+            routes.append(dict(route(card,state,detail,checks),specificEvidence=specific))
     blocker=None
     decision=conclude(facts,routes,blocker,complete=False)
     if routes and all(r["state"]=="excluded" for r in routes):

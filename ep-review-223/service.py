@@ -55,14 +55,14 @@ def prepare(body):
     if len(hashes)!=len(set(hashes)):
         raise ValueError("Один файл добавлен несколько раз.")
     # Amendment order affects the interpretation and belongs in the identity.
-    key=digest(("\n".join(hashes)).encode())
+    key=digest(("whole-clauses-v2|" + "\n".join(hashes)).encode())
     with connect() as db:
         found=db.execute("SELECT name,rules FROM policies WHERE id=?",(key,)).fetchone()
     if found and all("kind" in r and "category" in r for r in json.loads(found[1])):
         return dict(id=key,catalogue=saved_catalogue(found[0],json.loads(found[1])))
     rows=[]
     for i,(name,data) in enumerate(uploads):
-        rows.extend(passages(name,data,f"P{i+1}"))
+        rows.extend(passages(name,data,f"P{i+1}",structured=True))
     rules,model=inference.extract_rules(rows)
     label=str(body.get("label") or uploads[0][0]).strip()[:220]
     with connect() as db:
@@ -77,7 +77,7 @@ def review(body):
         raise ValueError("Сначала загрузите Положение.")
     name,raw=unpack(body.get("contract"))
     rules=json.loads(item[1])
-    docs=passages(name,raw,"D")
+    docs=passages(name,raw,"D",structured=True)
     grounds=[r for r in rules if r["kind"]=="ground"]
     if not grounds:
         raise ValueError("Не удалось извлечь основания ЕП. Сверьте текст Положения.")
@@ -158,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload=review(body)
             elif self.path=="/api/contract-facts":
                 name,raw=unpack(body.get("contract"))
-                payload=model_decision([],passages(name,raw,"D"),[],facts_only=True)
+                payload=model_decision([],passages(name,raw,"D",structured=True),[],facts_only=True)
             else:
                 return self.result(404,{"error":"Ресурс не найден."})
         except (ValueError,binascii.Error,zipfile.BadZipFile,ParseError,KeyError,TypeError,RuntimeError) as e:
