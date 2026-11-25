@@ -1,3 +1,5 @@
+import urllib.request
+import urllib.error
 import argparse
 import binascii
 import json
@@ -100,10 +102,38 @@ class Handler(BaseHTTPRequestHandler):
     def local(self):
         host=self.headers.get("Host","")
         return host in {f"127.0.0.1:{self.server.server_port}",f"localhost:{self.server.server_port}"}
+    def gateway(self, endpoint):
+        if self.headers.get("X-Review-Token")!=TOKEN:
+            return self.result(403,{"error":"Обновите страницу локального сервиса."})
+        auth=self.headers.get("Authorization","")
+        if not auth.startswith("Bearer ") or len(auth)>4096:
+            return self.result(401,{"error":"Нужен ключ AgentPlatform."})
+        data=None
+        if endpoint=="chat/completions":
+            try:
+                size=int(self.headers.get("Content-Length",0))
+            except ValueError:
+                size=0
+            if not 0<size<=16*1024*1024 or self.headers.get_content_type()!="application/json":
+                return self.result(400,{"error":"Нужен JSON-запрос допустимого размера."})
+            data=self.rfile.read(size)
+        req=urllib.request.Request("https://api.agentplatform.ru/v1/"+endpoint,data=data,headers={"Content-Type":"application/json","Authorization":auth})
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self,*args):
+                return None
+        try:
+            with urllib.request.build_opener(NoRedirect()).open(req,timeout=225) as resp:
+                self.send_data(200,resp.read(),"application/json; charset=utf-8")
+        except urllib.error.HTTPError as e:
+            self.result(e.code if 400<=e.code<=599 else 502,{"error":"AgentPlatform отклонил запрос."})
+        except (OSError,TimeoutError):
+            self.result(502,{"error":"AgentPlatform недоступен."})
     def do_GET(self):
         if not self.local():
             return self.result(403,{"error":"Допускается локальное подключение."})
         path=urlsplit(self.path).path
+        if path=="/api/agentplatform/models":
+            return self.gateway("models")
         if path in ("/","/index.html"):
             html=(BASE/"index.html").read_text("utf-8").replace('"__TOKEN__"',json.dumps(TOKEN))
             return self.send_data(200,html.encode(),"text/html; charset=utf-8")
@@ -111,6 +141,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.local() or self.headers.get("X-Review-Token")!=TOKEN:
             return self.result(403,{"error":"Откройте приложение на локальном адресе и обновите страницу."})
+        if self.path=="/api/agentplatform/chat/completions":
+            return self.gateway("chat/completions")
         try:
             size=int(self.headers.get("Content-Length","0"))
             if not 1<=size<=40*1024*1024:
