@@ -156,6 +156,9 @@ class Handler(BaseHTTPRequestHandler):
                 payload=prepare(body)
             elif self.path=="/api/review":
                 payload=review(body)
+            elif self.path=="/api/contract-facts":
+                name,raw=unpack(body.get("contract"))
+                payload=model_decision([],passages(name,raw,"D"),[],facts_only=True)
             else:
                 return self.result(404,{"error":"Ресурс не найден."})
         except (ValueError,binascii.Error,zipfile.BadZipFile,ParseError,KeyError,TypeError,RuntimeError) as e:

@@ -32,7 +32,7 @@ def check(label, state, detail, policy=(), contract=()):
     return dict(label=label, state=state, detail=detail, policy=list(policy), contract=list(contract))
 
 def route(card, state, detail, checks):
-    return dict(clause=card["clause"], title=card.get("title", card["clause"]), state=state,
+    return dict(category=card.get("category"), clause=card["clause"], title=card.get("title", card["clause"]), state=state,
                 detail=detail, checks=checks, policy=card["refs"])
 
 def conclude(facts, routes, blocker=None, complete=False):
@@ -69,14 +69,15 @@ CHECK_PROMPT = """Проверь КАЖДОЕ переданное основа�
 Проверь реальный предмет по строкам спецификации, цену, лимиты, специальные обстоятельства и все обязательные условия именно этого основания. Для предметного основания оцени каждую позицию спецификации, создай отдельную строку для каждой несовпадающей позиции. Условия альтернативных оснований не соединяй. Общий лимит по сумме допускает любой предмет только в указанных пределах. Не смешивай рубли с иной валютой. Для числового условия явно укажи обе величины в detail. Для risk нужно прямое доказанное противоречие; отсутствие документов означает unknown. Для ok и risk нужны цитаты договора. Если факт подвёл под конкретную норму из перечня общих условий или поправок, укажи её индекс в control_ids. Если редакция или контекст неоднозначны, дай unknown. anchor=true только если достаточная часть предмета/цены/события подтверждает реальную возможность именно этого варианта; для общего стоимостного основания обязательны предмет И укладывающаяся цена. Одно лишь отсутствие противоречия, стандартный форс-мажор и подпись ЭДО не дают оснований рекомендовать вариант. complete=true только если исчерпывающе проверены предмет, спецификация и все применимые условия основания. При отсутствии конкретной зацепки верни одно короткое unknown с тем, чего не хватает. Не придумывай обстоятельства."""
 
 
-def model_decision(grounds, rows, controls):
+def model_decision(grounds, rows, controls, facts_only=False):
     if sum(len(r["text"]) for r in rows) > 115000:
         raise ValueError("Договор превышает 115 тыс. знаков.")
     model = inference.model_name()
     docs = inference.compact(rows)
     rules = [dict(n=i,clause=g["clause"],rule=g["rule"]) for i,g in enumerate(grounds)]
     common=[dict(n=i,clause=c["clause"],rule=c["rule"]) for i,c in enumerate(controls)]
-    raw = inference.generate(FACT_PROMPT, dict(documents=docs, catalogue=rules,common_conditions=common), model)
+    prompt = FACT_PROMPT + " В поле indicators верни список фактических признаков специального основания (услуга, особый статус поставщика, событие) в формате [{value, citations}]. Для каждого укажи дословные цитаты. При отсутствии признаков верни []. Сумму и стандартный форс-мажор исключи."
+    raw = inference.generate(prompt, dict(documents=docs, catalogue=rules,common_conditions=common), model)
     facts = {}
     selected = None
     for name in ("subject","price","declared"):
@@ -108,6 +109,18 @@ def model_decision(grounds, rows, controls):
         else:
             facts["price"]=fact("",[price_evidence,*facts["price"]["refs"]])
     facts["declared"]["matched"] = selected is not None
+    indicators = raw.get("indicators")
+    facts["indicators"] = []
+    for item in indicators if isinstance(indicators, list) else []:
+        try:
+            evidence = verified(rows, item["citations"])
+            if evidence and item.get("value"):
+                facts["indicators"].append(fact(str(item["value"]), evidence))
+        except (KeyError, ValueError, TypeError):
+            continue
+    facts["indicatorsComplete"] = isinstance(indicators, list) and len(facts["indicators"]) == len(indicators)
+    if facts_only:
+        return facts
     if facts["declared"]["value"] and selected is None:
         facts["declared"]["note"] += " Связь ссылки с конкретной записью перечня не подтверждена."
     routes=[]
