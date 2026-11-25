@@ -39,13 +39,13 @@ function message(id,text,retry){const n=$(id);n.replaceChildren(el('span',text))
 function checkNode(c){const n=el('div',null,'check');n.append(el('span',labels[c.state]||c.state,'badge '+c.state),el('strong',c.label),el('p',c.detail));refs(n,c.policy,c.contract);return n}
 let currentCatalogue=null;
 function allRules(){return [...currentCatalogue.entries,...currentCatalogue.controls]}
-function ruleElement(r){const box=fold(r.title);box.className='rule';box.dataset.clause=r.clause;box.firstChild.append(el('small',r.clause+' · '+(r.limit||'Лимит в извлечённом фрагменте не установлен')));box.append(el('p',r.rule));if(r.check)box.append(el('p',r.check,'sub'));refs(box,r.refs);return box}
+function ruleElement(r){const box=fold(r.title);box.className='rule';box.dataset.clause=r.clause;box.firstChild.append(el('small',r.clause+' · '+(r.limit||'Лимит в извлечённом фрагменте не установлен')));box.append(el('p',r.rule));if(r.check)box.append(el('p',r.check,'sub'));refs(box,r.refs);renderRuleContext(box,r);return box}
 function drawCatalogue(){
   const host=$('catalogueRows');host.replaceChildren();if(!currentCatalogue)return;
   const norm=t=>String(t||'').toLowerCase().replaceAll('ё','е');
   const terms=norm($('groundSearch').value).trim().split(/\s+/).filter(Boolean),group=$('groundType').value;
   const matched=allRules().filter(r=>(!group||r.category===group)&&terms.every(t=>norm([r.title,r.clause,r.rule,r.check,r.limit,r.category].join(' ')).includes(t)));
-  $('count').textContent='Показано '+matched.length+' из '+allRules().length+' записей';for(const r of matched)host.append(ruleElement(r));
+  $('count').textContent='Показано '+matched.length+' из '+allRules().length+' записей';for(const name of ['Общие основания по сумме','Специальные основания','Общие условия и ограничения','Другие способы закупки']){const group=matched.filter(r=>groupName(r)===name);if(group.length){host.append(el('h4',name));for(const r of group)host.append(ruleElement(r))}}
 }
 function jumpToRule(clause){if(!currentCatalogue)return;$('groundSearch').value=clause;$('groundType').value='';drawCatalogue();const node=Array.from($('catalogueRows').children).find(row=>row.dataset.clause===clause);if(node){node.open=true;node.scrollIntoView({block:'nearest'});node.firstChild.focus({preventScroll:true})}}
 function routeNode(r){const box=el('div',null,'route'),b=el('button',r.clause);b.onclick=()=>jumpToRule(r.clause);box.append(b,el('strong',r.title),el('span',labels[r.state],'badge '+r.state),el('p',r.detail));for(const c of r.checks)box.append(checkNode(c));if(!r.checks.length)refs(box,r.policy);return box}
@@ -57,11 +57,12 @@ function showReport(data){
   }
   host.append(facts);
   const verdict=el('div',null,'verdict '+d.state);verdict.append(el('h3',d.title),el('p',d.detail));host.append(verdict);
+  if(d.general?.length){host.append(el('h4','По общим основаниям'));for(const r of d.general)host.append(routeNode(r))}
   if(d.blocker)host.append(checkNode(d.blocker));
-  if(d.selected){host.append(el('h4','Проверка пункта заказчика'),routeNode(d.selected))}
-  if(d.alternatives.length){host.append(el('h4',d.selected||d.facts.declared.value?'Какой пункт можно предложить':'Какой пункт подходит по документам'));for(const r of d.alternatives)host.append(routeNode(r))}
-  else if(['excluded','unknown','partial'].includes(d.state)){host.append(el('p','Среди проверенных пунктов другой вариант не выделен.','spot'))}
-  const other=d.routes.filter(r=>r.clause!==d.selected?.clause&&!d.alternatives.some(a=>a.clause===r.clause));
+  if(d.selected&&!d.general?.includes(d.selected)){host.append(el('h4','Проверка пункта заказчика'),routeNode(d.selected))}
+  if(d.alternatives.some(r=>!d.general?.includes(r))){host.append(el('h4',d.selected||d.facts.declared.value?'Какой пункт можно предложить':'Какой пункт подходит по документам'));for(const r of d.alternatives.filter(r=>!d.general?.includes(r)))host.append(routeNode(r))}
+  else if(!d.alternatives.length&&['excluded','unknown','partial'].includes(d.state)){host.append(el('p','Среди проверенных пунктов другой вариант не выделен.','spot'))}
+  const other=d.routes.filter(r=>!d.general?.includes(r)&&r.clause!==d.selected?.clause&&!d.alternatives.some(a=>a.clause===r.clause));
   if(other.length&&!d.blocker){const box=fold('Результаты по остальным проверенным основаниям · '+other.length);for(const r of other){const row=fold(r.clause+' · '+(labels[r.state]||r.state));row.append(routeNode(r));box.append(row)}host.append(box)}
   if(data.items.length){const box=fold('Дополнительные проверки договора · '+data.items.length);for(const it of data.items){const n=checkNode({label:it.title+' · '+it.clause,state:it.status,detail:it.detail,policy:it.policy,contract:it.contract});if(it.action)n.append(el('p',it.action,'sub'));box.append(n)}host.append(box)}
 }
@@ -145,6 +146,75 @@ async function readDocument(f){
   return fileRows(f.name,parts);
 }
 
+// Keep numbering tied to the original file, including duplicate clause numbers in amendments.
+function policyIndex(docs){
+  const units=[],byNumber=new Map(),children=new Map();
+  for(const rows of docs){
+    let parent=null,current=null;
+    for(const row of rows){
+      const t=clean(row.text),numbered=t.replace(/^[«„“"]/,'');const p=numbered.match(/^(\d+(?:\.\d+)+)\.?(?:\s|$)/)||numbered.match(/^(?:пункт\s+)(\d+)[.:]\s/i),sub=numbered.match(/^(\d+)\)\s*/);
+      if(/^(?:статья|глава|раздел)\s+\d/i.test(numbered)){current=null;parent=null}
+      if(p||sub||!current||current.text.length>12000||!row.place.startsWith('стр. ')&&!current.num&&!current.sub){
+        current={id:units.length,file:row.file,start:row.place,end:row.place,text:t,num:p?.[1]||'',sub:sub?.[1]||'',parent:sub?parent:null};
+        units.push(current);
+        if(current.parent){const k=current.parent.id;if(!children.has(k))children.set(k,[]);children.get(k).push(current)}
+        if(p){parent=current;const matches=byNumber.get(current.num)||[];matches.push(current);byNumber.set(current.num,matches)}
+      }else{current.text+=' '+t;current.end=row.place}
+    }
+  }
+  return {units,byNumber,children};
+}
+function normQuote(s){return clean(s).replace(/[«»“”„"]/g,'"').replace(/[‐‑–—]/g,'-').toLowerCase().replaceAll('ё','е')}
+function refOf(b){return {file:b.file,place:b.start===b.end?b.start:b.start+' — '+b.end,quote:b.text}}
+function groupName(c){return c.category==='Отдельный способ'||c.kind==='method'?'Другие способы закупки':c.kind==='control'?'Общие условия и ограничения':c.category==='Цена'?'Общие основания по сумме':'Специальные основания'}
+function internalReferences(unit,parent,index){
+  const raw=unit.text+' '+(parent?.text||''),out=[],seen=new Set();
+  const pattern=/(?:(?:подпункт[а-яё]*|подп\.|пп\.)\s*(\d+)\)?\s+)?(?:пункт[а-яё]*|п\.)\s*(\d+(?:\.\d+)+)/gi;
+  for(const match of raw.matchAll(pattern)){
+    const [,sub,num]=match,found=index.byNumber.get(num)||[],label=(sub?'подп. '+sub+' ':'')+'п. '+num;
+    if(seen.has(label))continue;seen.add(label);
+    let resolved=false;
+    for(const p of found){
+      const nested=(index.children.get(p.id)||[]).filter(x=>!sub||x.sub===sub);
+      if(sub&&!nested.length)continue;
+      resolved=true;
+      for(const row of [p,...nested])if(p!==parent&&p!==unit&&row!==unit&&row!==parent)out.push({role:'Отсылка к '+label+(found.length>1?' · проверьте редакцию':''),row});
+    }
+    if(!resolved)out.push({role:'Отсылка к '+label,missing:true});
+  }
+  return out;
+}
+function enrichRule(r,blocks,index){
+  if(!r.refs?.length||!r.rule||!r.clause)throw Error('Пункт возвращён без источника.');
+  const refs=sources(blocks,r.refs),u=blocks[refs[0].block];
+  const clause=u.sub&&u.parent?'Подп. '+u.sub+' п. '+u.parent.num:(u.num?'П. '+u.num:r.clause);
+  const parent=u.parent||(u.num?.includes('.')?index.byNumber.get(u.num.split('.').slice(0,-1).join('.'))?.find(x=>x.file===u.file):null);
+  const context=[],links=new Set(),linkedIds=new Set();
+  const add=(role,b)=>{if(!b||linkedIds.has(b.id))return;linkedIds.add(b.id);context.push({role,...refOf(b)})};
+  add('Пункт Положения',parent);add('Текст нормы',u);
+  for(const ref of internalReferences(u,parent,index)){
+    if(ref.missing)links.add(ref.role+' — текст в комплекте не найден.');
+    else add(ref.role,ref.row);
+  }
+  for(const x of u.text.matchAll(/(?:№\s*|N\s*)(\d+\s*[-‑–]\s*ФЗ)/gi))links.add('Внешняя отсылка: '+x[1]+'. Содержание закона по этой ссылке отдельно не проверено.');
+  const hasLiteral=refs.some(p=>normQuote(p.quote).includes(normQuote(r.limit||'')))||normQuote(u.text).includes(normQuote(r.limit||''));
+  const cap=commonCap(u.text);
+  const category=r.kind==='method'?'Другой способ':(r.kind==='ground'&&r.category==='Цена'&&cap&&/товар[а-яё]*,?\s*работ[а-яё]*,?\s*(?:или\s+)?услуг/i.test(u.text)?'Цена':r.category);
+  const limit=hasLiteral?clean(r.limit):'';
+  const annual=u.text.match(/(?:при этом\s+)?годов[а-яё]*\s+об[ъь][её]м[^.;]{0,420}?%[^.;]*/i)?.[0]||(r.annual&&normQuote(u.text).includes(normQuote(r.annual))?r.annual:'');
+  const capText=category==='Цена'&&cap?(cap.inclusive?'Не более ':'До ')+cap.label:limit||((r.capState==='absent'&&r.kind==='ground')?'Собственный денежный предел в этом основании не указан.':'Денежный предел по фрагменту не установлен.');
+  return {...r,category,clause,limit:capText,annual,refs,context,links:[...links],cap:category==='Цена'?cap:null};
+}
+function moneyTerms(s){return Array.from(clean(s).matchAll(/(\d+(?:[ ]\d{3})*(?:[.,]\d{1,2})?)\s*(?:\([^()]{1,110}\)\s*)?(?:(тыс(?:яч[аиу]?)?\.?|млн\.?|миллион[а-я]*)\s*)?(?:руб(?:лей|ля|ль|\.)?|₽)/gi),m=>({value:numericValue(m[1])*(m[2]?(/^тыс/i.test(m[2])?1000:1000000):1),label:m[0],index:m.index}))}
+function commonCap(t){const a=moneyTerms(t);if(a.length!==1)return null;const m=a[0],before=clean(t).slice(0,m.index);if(!/(?:не превыша[а-яё]*|не более|до)\s*$/i.test(before))return null;return {...m,inclusive:!/до\s*$/i.test(before)||/включительно/i.test(t)}}
+function renderRuleContext(box,r){
+  if(r.annual)box.append(el('p','Годовой объём: '+r.annual));
+  if(r.revisionWarning)box.append(el('p',r.revisionWarning,'spot'));
+  if(Array.isArray(r.conditions)&&r.conditions.length)box.append(el('p','Условия: '+r.conditions.join(' · ')));
+  for(const c of r.context||[]){const d=fold(c.role+' · '+c.place);d.append(el('small',c.file),el('blockquote',c.quote));box.append(d)}
+  for(const link of r.links||[])box.append(el('p',link,'sub'));
+}
+
 let connection=null,policyRequest=null,reviewRequest=null;
 const gString={type:'STRING'},gInt={type:'INTEGER'};
 const gEnum=(...values)=>({type:'STRING',enum:values});
@@ -152,7 +222,7 @@ const gArray=items=>({type:'ARRAY',items});
 const gObject=properties=>({type:'OBJECT',properties,required:Object.keys(properties)});
 const gEvidence=gArray(gObject({id:gInt,quote:gString}));
 const gField=gObject({value:gString,refs:gEvidence});
-const catalogueSchema=gObject({rules:gArray(gObject({clause:gString,title:gString,kind:gEnum('ground','control','method'),category:gEnum('Цена','Предмет','Поставщик','Обстоятельства','Решение','Процедура'),rule:gString,limit:gString,check:gString,refs:gEvidence}))});
+const catalogueSchema=gObject({rules:gArray(gObject({clause:gString,title:gString,kind:gEnum('ground','control','method'),category:gEnum('Цена','Предмет','Поставщик','Обстоятельства','Решение','Процедура'),rule:gString,limit:gString,annual:gString,conditions:gArray(gString),capState:gEnum('present','absent','unresolved'),check:gString,refs:gEvidence}))});
 const factsSchema=gObject({subject:gField,price:gField,declared:gField,selected:gInt});
 const routeSchema=gObject({routes:gArray(gObject({id:gInt,reason:gString,complete:{type:'BOOLEAN'},anchor:{type:'BOOLEAN'},checks:gArray(gObject({label:gString,status:gEnum('ok','risk','unknown'),detail:gString,refs:gEvidence,controls:gArray(gInt),op:gEnum('none','lt','le','eq','ge','gt'),actual:gString,threshold:gString}))}))});
 function compactPages(documents){
@@ -169,7 +239,18 @@ function compactPages(documents){
 }
 function sources(blocks,refs){
   if(!Array.isArray(refs))throw Error('Gemini вернул ответ без списка источников.');
-  return refs.map(x=>{const b=blocks[x.id],q=clean(x.quote);if(!Number.isInteger(x.id)||!b||q.length<5||!b.text.includes(q))throw Error('Цитата Gemini не совпала с документом. Повторите анализ.');return {file:b.file,place:b.start===b.end?b.start:b.start+' — '+b.end,quote:q}});
+  return refs.map(x=>{
+    const q=clean(x.quote),needle=normQuote(q);
+    if(q.length<5)throw Error('Модель вернула слишком короткую цитату.');
+    let id=x.id;
+    if(!blocks[id]||!normQuote(blocks[id].text).includes(needle)){
+      const matches=blocks.map((b,k)=>normQuote(b.text).includes(needle)?k:-1).filter(k=>k>=0);
+      if(matches.length!==1)throw Error('Цитата не найдена однозначно в документе.');
+      id=matches[0];
+    }
+    const b=blocks[id],offset=normQuote(b.text).indexOf(needle);
+    return {...refOf(b),block:id,quote:clean(b.text).slice(offset,offset+q.length)};
+  });
 }
 function material(blocks){return blocks.map((b,id)=>({id,file:b.file,text:b.text}))}
 const providerBase='https://api.agentplatform.ru/v1';
@@ -190,58 +271,125 @@ async function geminiCall(prompt,input,schema,signal){
   const c=result.choices?.[0];if(!c||c.finish_reason&&c.finish_reason!=='stop')throw Error(c?.finish_reason==='length'?'Ответ модели обрезан. Загрузите профильный раздел Положения.':'Модель не вернула полный ответ.');
   try{return JSON.parse(c.message.content.trim().replace(/^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$/gi,''))}catch{throw Error('Модель вернула некорректный JSON. Повторите анализ.')}
 }
-async function aiCatalogue(docs,signal){
-  const blocks=compactPages(docs),data=await geminiCall('Извлеки из всей редакции исчерпывающий перечень оснований закупки у единственного поставщика. Каждому самостоятельному подпункту соответствует отдельный ground. control — сквозное условие или ограничение, method — иной способ закупки. Применяй поправки по порядку файлов, отмечай неопределённость. Цена — общее основание для любых товаров, работ, услуг. Отличай цену договора, годовую долю и порог публикации. Дай короткое название, пункт, условия, исключения, какие доказательства нужны. limit — точная цитата порога или пустая строка. refs — доказательства, включая все существенные оговорки.',material(blocks),catalogueSchema,signal);
-  const entries=[],controls=[];
-  for(const r of data.rules){const refs=sources(blocks,r.refs);if(!refs.length||!r.clause||!r.rule)throw Error('Gemini не подтвердил пункт Положения источником.');
-    if(r.limit&&!refs.some(p=>p.quote.includes(clean(r.limit))))throw Error('Gemini не подтвердил формулировку лимита цитатой. Повторите анализ.');
-    const card={...r,refs,category:r.kind==='method'?'Другой способ':r.category};(r.kind==='control'?controls:entries).push(card)}
-  if(!entries.length&&!controls.length)throw Error('Gemini не обнаружил правил прямой закупки. Проверьте загруженную редакцию.');
-  return {name:docs.map(d=>d[0].file).join(' · '),entries,controls};
+function policyPayload(u,index){
+  const context=[];
+  if(u.parent)context.push({role:'Вводная часть пункта '+u.parent.num,text:u.parent.text});
+  for(const ref of internalReferences(u,u.parent,index)){
+    context.push({role:ref.role,file:ref.row?.file,text:ref.row?.text||'Текст в комплекте не найден.'});
+  }
+  return {file:u.file,place:u.start,clause:u.sub&&u.parent?'Подп. '+u.sub+' п. '+u.parent.num:u.num,context,text:u.text};
+}
+async function aiCatalogue(docs,signal,progress=()=>{}){
+  const index=policyIndex(docs),entries=[],controls=[],warnings=[],seen=new Set();
+  const prompt='Извлеки правила закупки у единственного поставщика из target. Передан текст каждого подпункта, его вводный пункт и доступные отсылки. Каждый самостоятельный случай ЕП — отдельный ground. Раздели общие основания по сумме для любых товаров, работ, услуг (категория Цена) и специальные по предмету, поставщику, обстоятельствам. Для каждого перечисли: что можно купить, у кого, денежный предел по одной закупке, включительно ли, отдельно годовой объём, условия финансирования, исключения и необходимые подтверждения. Порог раскрытия сведений не является основанием ЕП. Не переноси лимит соседнего подпункта на специальное основание. capState=absent только если в полном основании не указан свой денежный предел, unresolved при непроверенной отсылке, влияющей на сумму. В limit и annual только дословный текст соответствующего ограничения, иначе пустая строка. Включи сквозные ограничения, запреты, процедуры и изменения как control. Остальные разделы пропускай. Для refs указывай id из target и цитату из поля text самого подпункта, первой цитатой подтверждай саму норму. Если в target ничего относящегося к ЕП, верни rules=[].';
+  let batch=[],size=0;const batches=[];
+  for(const u of index.units){
+    const data=policyPayload(u,index),cost=JSON.stringify(data).length;
+    if(batch.length&&(size+cost>24000||batch.length>=60||u.sub&&u.parent&&batch.filter(v=>v.u.parent===u.parent).length>=8)){
+      batches.push(batch);batch=[];size=0;
+    }
+    batch.push({u,data});size+=cost;
+  }
+  if(batch.length)batches.push(batch);
+  async function extract(part,attempt=0){
+    signal.throwIfAborted();
+    const blocks=part.map(v=>v.u),target=part.map((v,id)=>({...v.data,id}));
+    try{
+      const data=await geminiCall(prompt,{target},catalogueSchema,signal);
+      if(!Array.isArray(data.rules))throw Error('Ответ без списка правил.');
+      const cards=data.rules.map(r=>enrichRule(r,blocks,index));
+      const positions=new Set(cards.map(c=>c.refs[0].block));
+      for(let k=0;k<blocks.length;k++){
+        const u=blocks[k];
+        if(u.sub&&u.parent&&/единственн[а-яё]* поставщик[а-яё]*.{0,180}следующих случаях/i.test(u.parent.text)&&!positions.has(k))throw Error('Пропущен подпункт '+u.sub+' пункта '+u.parent.num+'.');
+      }
+      for(const card of cards){
+        const key=[card.kind,card.clause,card.refs[0].file,card.refs[0].place,card.title].join('|');
+        if(!seen.has(key)){seen.add(key);(card.kind==='control'?controls:entries).push(card)}
+      }
+    }catch(e){
+      if(signal.aborted||e.status||/AgentPlatform/.test(e.message))throw e;
+      if(part.length>1&&attempt<3){const mid=Math.ceil(part.length/2);await extract(part.slice(0,mid),attempt+1);await extract(part.slice(mid),attempt+1)}
+      else if(attempt===0){await extract(part,1)}
+      else warnings.push(part[0].u.file+' · '+part[0].u.start+' — '+part.at(-1).u.end+'. '+e.message);
+    }
+  }
+  for(let n=0;n<batches.length;n++){
+    progress('Извлекаем условия Положения · часть '+(n+1)+' из '+batches.length+'…');await extract(batches[n]);
+  }
+  if(!entries.length&&!controls.length)throw Error('Основания ЕП не извлечены. '+(warnings[0]||'Проверьте редакцию и текстовый слой.'));
+  for(const r of [...entries,...controls]){
+    if([...entries,...controls].some(c=>c!==r&&c.clause===r.clause&&c.refs[0].file!==r.refs[0].file))
+      r.revisionWarning='Этот пункт встречается в нескольких файлах. Уточните действующую редакцию.';
+  }
+  return {name:docs.map(d=>d[0].file).join(' · '),entries,controls,warnings};
 }
 function numericValue(s){const t=String(s).replace(/\s/g,'').replace(',','.');return /^\d+(?:\.\d+)?$/.test(t)?Number(t):NaN}
 function quotedNumber(n,refs){return refs.some(r=>Array.from(r.quote.matchAll(/\d+(?:[ \u00a0\u202f]\d{3})*(?:[.,]\d+)?/g),m=>numericValue(m[0])).includes(n))}
 async function aiReview(cat,rows,signal,progress){
   const blocks=compactPages([rows]),docs=material(blocks),grounds=cat.entries.filter(r=>r.kind==='ground'),controls=cat.controls;
   if(!grounds.length)throw Error('В этой редакции нет извлечённых оснований ЕП для сверки.');
-  const describe=(c,id)=>({id,clause:c.clause,rule:c.rule,limit:c.limit,check:c.check,quotes:c.refs.map(r=>r.quote)});
+  const describe=(c,id)=>({id,clause:c.clause,rule:c.rule,limit:c.limit,check:c.check,category:c.category,annual:c.annual,conditions:c.conditions,context:c.context,links:c.links,revision:c.revisionWarning,quotes:c.refs.map(r=>r.quote)});
   const list=grounds.map(describe),common=controls.map(describe);
   const out=await geminiCall('Извлеки предмет по спецификации, полную цену с валютой и прямо названное основание Положения. При отсутствии или неоднозначности верни пустое value. Для declared.value приведи номер дословно. selected — id однозначно названного пункта из перечня, иначе -1. Ссылка на устав или закон не является выбором пункта. Не выводи выбор из цены.',{documents:docs,grounds:list.map(({id,clause})=>({id,clause}))},factsSchema,signal);
   const facts={};for(const k of ['subject','price','declared']){const f=out[k],refs=sources(blocks,f.refs);if(f.value&&!refs.length)throw Error('В ответе отсутствует цитата для поля договора.');facts[k]={value:f.value,refs}}
-  const sel=out.selected,chosen=grounds[sel];
+  let sel=Number.isInteger(out.selected)?out.selected:-1;const chosen=grounds[sel];
   if(sel!==-1){const nums=chosen?.clause.match(/\d+(?:\.\d+)*/g)||[],cited=facts.declared.refs.flatMap(r=>r.quote.match(/\d+(?:\.\d+)*/g)||[]);
-    if(!chosen||!facts.declared.value||!nums.length||!nums.every(n=>cited.includes(n)))throw Error('Не удалось подтвердить номер указанного основания по договору.')}
+    if(!chosen||!facts.declared.value||!nums.length||!nums.every(n=>cited.includes(n))){sel=-1;facts.declared.note='Не удалось однозначно сопоставить ссылку с пунктом Положения.'}}
   const routes=[];
   for(let offset=0;offset<list.length;offset+=6){
     progress('Gemini проверяет основания '+(offset+1)+'–'+Math.min(offset+6,list.length)+' из '+list.length+'…');
     const target=list.slice(offset,offset+6);
-    const result=await geminiCall('Проверь каждое целевое основание и его условия, включая общие ограничения. Сопоставь спецификацию по позициям, цену, годовой объём, источник денег, поставщика и обстоятельства, если применимо. Опиши все расхождения. Предположения и недостающие документы дают unknown. risk — только доказанное противоречие. refs — цитаты договора. controls — номера применённых общих ограничений. Для сравнения чисел дай actual и threshold в одинаковых единицах (как в цитатах), op — операция для соблюдения нормы. Остальные проверки op=none. complete=true только при подтверждении всех условий. anchor=true только если доказано существенное совпадение с конкретным основанием. Общая оговорка о форс-мажоре не доказывает аварию. Верни ровно одну строку на каждый target id.',{target,common,documents:docs},routeSchema,signal);
-    if(!Array.isArray(result.routes)||result.routes.map(x=>x.id).sort((a,b)=>a-b).join()!==target.map(x=>x.id).join())throw Error('Gemini пропустил или повторил пункт. Повторите проверку.');
-    for(const item of result.routes){const c=grounds[item.id];let numericOK=false;
-      const checks=item.checks.map(x=>{const contract=sources(blocks,x.refs),policy=[...c.refs];
-        for(const idx of x.controls){if(!controls[idx])throw Error('Недействительная ссылка на общее ограничение.');policy.push(...controls[idx].refs)}
+    const assess=async targets=>{const result=await geminiCall('Проверь каждое целевое основание и его условия, включая общие ограничения. Оцени вводный пункт, собственный подпункт и приведённый текст отсылок. Для общего основания вынеси отдельную проверку разовой цены и отдельную проверку годовой доли. Лимит общего основания не относится автоматически к специальным. Цену договора не считай подтверждением годового объёма. Сопоставь спецификацию по позициям, цену, годовой объём, источник денег, поставщика и обстоятельства, если применимо. Опиши все расхождения. Предположения и недостающие документы дают unknown. risk — только доказанное противоречие. refs — цитаты договора. controls — номера применённых общих ограничений. Для сравнения чисел дай actual и threshold в одинаковых единицах (как в цитатах), op — операция для соблюдения нормы. Остальные проверки op=none. complete=true только при подтверждении всех условий. anchor=true только если доказано существенное совпадение с конкретным основанием. Общая оговорка о форс-мажоре не доказывает аварию. Верни ровно одну строку на каждый target id.',{target:targets,common,documents:docs},routeSchema,signal);
+    if(!Array.isArray(result.routes)||result.routes.some(r=>!Array.isArray(r.checks))||result.routes.map(x=>x.id).sort((a,b)=>a-b).join()!==targets.map(x=>x.id).join())throw Error('Gemini пропустил или повторил пункт. Повторите проверку.');
+    return result.routes};
+    async function evaluate(group){try{return await assess(group)}catch(e){
+      if(signal.aborted||e.status||/AgentPlatform/.test(e.message))throw e;
+      if(group.length>1){const i=Math.ceil(group.length/2);return [...await evaluate(group.slice(0,i)),...await evaluate(group.slice(i))]}
+      return [{id:group[0].id,complete:false,anchor:false,reason:e.message,checks:[{label:'Оценка модели',status:'unknown',detail:e.message,refs:[],controls:[],op:'none'}]}];
+    }}
+    for(const item of await evaluate(target)){const c=grounds[item.id];let numericOK=false;
+      const checks=item.checks.map(x=>{let contract=[];try{contract=sources(blocks,x.refs)}catch{}const policy=[...c.refs];
+        for(const idx of x.controls||[]){if(controls[idx])policy.push(...controls[idx].refs);else x.status='unknown'}
         let state=x.status,detail=x.detail;
-        if(state!=='unknown'&&!contract.length)throw Error('Вывод по условию не подтверждён цитатой договора.');
+        if(state!=='unknown'&&!contract.length){state='unknown';detail='Подтверждающая цитата договора не найдена.'}
         if(x.op!=='none'&&state!=='unknown'){const a=numericValue(x.actual),b=numericValue(x.threshold),pass={lt:a<b,le:a<=b,eq:a===b,ge:a>=b,gt:a>b}[x.op];
           if(!quotedNumber(a,contract)||!quotedNumber(b,policy)||pass!==(state==='ok')){state='unknown';detail='Сравнение чисел не подтверждено цитатами.'}
           else if(state==='ok'&&quotedNumber(a,facts.price.refs))numericOK=true}
         return {label:x.label,state,detail,policy,contract}});
-      const anchored=item.anchor&&facts.subject.value&&checks.some(x=>x.state==='ok')&&(c.category!=='Цена'||numericOK);
+      for(const x of checks)if(c.annual&&/годов/i.test(x.label)&&x.state!=='unknown'&&!x.contract.some(r=>/годов|совокупн/i.test(r.quote))){x.state='unknown';x.detail='Договор не подтверждает фактический объём закупок за год.'}
+      let priceResult='';
+      if(c.cap&&facts.price.value){
+        const amounts=moneyTerms(facts.price.value),v=amounts.length===1?amounts[0].value:numericValue(facts.price.value);
+        const confirmed=Number.isFinite(v)&&facts.price.refs.some(r=>moneyTerms(r.quote).some(m=>m.value===v));
+        if(confirmed){
+          const within=v<c.cap.value||v===c.cap.value&&c.cap.inclusive;
+          const state=within?'ok':v===c.cap.value?'unknown':'risk';
+          numericOK=within;
+          priceResult=(within?'По цене одной закупки проходит':state==='risk'?'Цена закупки превышает предел':'Уточните включение предельной суммы')+' по '+c.clause+' · '+facts.price.value+' при пределе '+c.cap.label+'.';
+          checks.unshift({label:'Цена одной закупки',state,detail:priceResult,contract:facts.price.refs,policy:c.context||c.refs});
+        }
+      }
+      if(c.annual&&!checks.some(x=>/годов/i.test(x.label)))
+        checks.push({label:'Годовой объём',state:'unknown',detail:'Для подтверждения нужны сведения о закупках за год. '+c.annual,policy:c.refs,contract:[]});
+      if(c.revisionWarning||cat.warnings?.length)checks.push({label:'Полнота проверки редакции',state:'unknown',detail:c.revisionWarning||'Часть текста Положения требует сверки.',policy:c.refs,contract:[]});
+      const anchored=(item.anchor||numericOK)&&facts.subject.value&&checks.some(x=>x.state==='ok')&&(c.category!=='Цена'||numericOK);
       const state=checks.some(x=>x.state==='risk')?'excluded':anchored?(item.complete&&checks.every(x=>x.state==='ok')?'fit':'partial'):'unknown';
-      routes[item.id]={clause:c.clause,title:c.title,policy:c.refs,state,detail:state==='unknown'?(checks.find(x=>x.state==='unknown')?.detail||'Недостаточно подтверждённых сведений.'):item.reason,checks};
+      routes[item.id]={clause:c.clause,title:c.title,policy:c.refs,state,detail:priceResult?priceResult+' '+(state==='excluded'?(checks.find(x=>x.state==='risk')?.detail||''):state==='partial'?'Остаются неподтверждённые условия.':''):state==='unknown'?(checks.find(x=>x.state==='unknown')?.detail||'Недостаточно подтверждённых сведений.'):item.reason,checks};
     }
   }
   const selected=routes[sel]||null,alternatives=selected?.state==='fit'?[]:routes.filter(r=>r!==selected&&['fit','partial'].includes(r.state)).sort((a,b)=>Number(b.state==='fit')-Number(a.state==='fit'));
   const state=selected?.state||(alternatives.length?'suggest':'unknown');
   const title={fit:'Соответствует указанному основанию',partial:'Данных для подтверждения недостаточно',excluded:'Не соответствует указанному основанию',suggest:'Есть возможное основание',unknown:'Подходящее основание не подтверждено'}[state];
-  return {title:rows[0].file,meta:'Проверено оснований: '+routes.length,mode:connection.model,items:[],decision:{facts,selected,alternatives,routes,state,title,blocker:null,detail:selected?.detail||(alternatives.length?'Проверьте условия предложенного пункта.':routes.every(r=>r.state==='excluded')?'По каждому извлечённому основанию выявлено противоречие.':'Сверьте недостающие документы и полноту перечня.')}};
+  return {title:rows[0].file,meta:'Проверено оснований: '+routes.length,mode:connection.model,items:[],decision:{facts,selected,alternatives,general:routes.filter((r,id)=>grounds[id].category==='Цена'),routes,state,title,blocker:null,detail:selected?.detail||(alternatives.length?'Проверьте условия предложенного пункта.':routes.every(r=>r.state==='excluded')?'По каждому извлечённому основанию выявлено противоречие.':'Сверьте недостающие документы и полноту перечня.')}};
 }
 
 function displayCatalogue(d){
   currentCatalogue=d;$('catalogueBody').hidden=false;$('edition').textContent=d.name;$('groundSearch').value='';
   const types=$('groundType');types.replaceChildren();option(types,'','Все категории');for(const name of new Set(allRules().map(r=>r.category)))option(types,name,name);
   const h=$('highlights');h.replaceChildren();
-  for(const r of d.entries.filter(r=>r.category==='Цена'&&r.limit)){const card=el('div',null,'spot');card.append(el('strong',r.clause),el('p',r.limit));refs(card,r.refs);h.append(card)}
+  for(const warning of d.warnings||[])h.append(el('p','Требует ручной сверки: '+warning,'spot'));
+  for(const r of d.entries.filter(r=>r.category==='Цена'&&r.limit)){const card=el('div',null,'spot');card.append(el('strong',r.clause),el('p',r.limit));if(r.annual)card.append(el('p',r.annual));refs(card,r.refs);h.append(card)}
   drawCatalogue();
 }
 
@@ -280,7 +428,7 @@ async function loadPolicy(){
   if(chosen.length>8){policyError=true;message('pstatus','Выберите основной текст и до семи поправок.');return}
   message('pstatus','Модель извлекает основания, лимиты и условия…');
   try{
-    const data=connection?{id:'gemini',catalogue:await aiCatalogue(await Promise.all(chosen.map(readDocument)),signal)}:await api('/api/policies',{files:await Promise.all(chosen.map(upload))});
+    const data=connection?{id:'gemini',catalogue:await aiCatalogue(await Promise.all(chosen.map(readDocument)),signal,s=>{if(seq===version)message('pstatus',s)})}:await api('/api/policies',{files:await Promise.all(chosen.map(upload))});
     if(seq!==version)return;
     policyId=data.id;displayCatalogue(data.catalogue);message('pstatus','Извлечено оснований ЕП: '+data.catalogue.entries.filter(r=>r.kind==='ground'||(local&&!r.kind&&r.category!=='Отдельный способ')).length+'. Цитаты сверены с текстом.');
     if($('contractFile').files.length)await reviewFile();
